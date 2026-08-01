@@ -9,48 +9,68 @@ export function createAgentDefaultDocs(
   responsibilities: string,
   decisions: string
 ): AgentDoc[] {
-  return [
-    {
-      id: `${agentId}-arch`,
-      title: `${personName}'s Architecture Spec`,
-      filename: `${personName.toLowerCase()}_architecture.md`,
-      category: 'architecture',
-      content: decisions || `# Domain Architecture Specification: ${roleName}\n\n**Author**: ${personName} (${roleName})\n**Scope**: ${responsibilities}\n\n## Overview\nClick "Build Domain Architecture" or edit raw markdown to draft ${personName}'s domain technical specification.`,
-      updatedAt: Date.now()
-    },
-    {
-      id: `${agentId}-design`,
-      title: `${personName}'s Design Principles`,
-      filename: `${personName.toLowerCase()}_design_principles.md`,
-      category: 'design_principles',
-      content: `# Design Principles & Technical Patterns: ${roleName}\n\n**Owner**: ${personName}\n\n## Core Principles\n1. **High Cohesion & Bounded Contexts**: Keep domain logic isolated with strict interface contracts.\n2. **Type Safety & Schema Validation**: Validate inputs and state transitions strictly.\n3. **Resiliency & Fault Tolerance**: Provide graceful fallbacks and clear error logging.\n4. **Clean Code & Modularity**: Maintain readable, self-documenting code standards.`,
-      updatedAt: Date.now()
-    },
-    {
-      id: `${agentId}-procedural`,
-      title: `${personName}'s Procedural SOPs`,
-      filename: `${personName.toLowerCase()}_procedural_memory.md`,
-      category: 'procedural',
-      content: `# Procedural Memory & Operating SOPs: ${roleName}\n\n**Operator**: ${personName}\n\n## Rules of Engagement & SOPs\n1. **Directive Review**: Align all domain specifications with supervisor guidelines.\n2. **Diff Verification**: Publish line-by-line diffs upward prior to merging.\n3. **Validation Check**: Run linter and compiler verification before finalizing.`,
-      updatedAt: Date.now()
-    },
-    {
-      id: `${agentId}-episodic`,
-      title: `${personName}'s Episodic Log`,
-      filename: `${personName.toLowerCase()}_episodic_memory.md`,
-      category: 'episodic',
-      content: `# Episodic Memory & Interaction Ledger: ${personName}\n\n## Decision Log\n- [${new Date().toLocaleDateString()}] Persona initialized and assigned role: **${roleName}**.\n- [${new Date().toLocaleDateString()}] Domain scope configured: *${responsibilities}*.`,
-      updatedAt: Date.now()
-    },
-    {
-      id: `${agentId}-sprint`,
-      title: `${personName}'s Sprint Plan`,
-      filename: `${personName.toLowerCase()}_sprint_planning.md`,
-      category: 'sprint_planning',
-      content: `# Sprint Planning & Deliverables: ${roleName}\n\n**Lead**: ${personName}\n\n## Active Sprint Plan\n- [x] Establish role scope & direct report hierarchy.\n- [/] Draft domain architecture specification.\n- [ ] Submit domain slice for supervisor review & approval.`,
-      updatedAt: Date.now()
-    }
-  ];
+  const roleLower = roleName.toLowerCase();
+  const isSupervisor = roleLower.includes('head') || roleLower.includes('supervisor') || roleLower.includes('architect');
+  const isLead = roleLower.includes('lead') || roleLower.includes('manager') || roleLower.includes('orchestrator');
+
+  if (isSupervisor) {
+    return [
+      {
+        id: `${agentId}-arch`,
+        title: `Architecture Spec (${roleName})`,
+        filename: `architecture_spec.md`,
+        category: 'architecture',
+        content: decisions || `# System Architecture Specification\n\n**Owner**: ${personName} (${roleName})\n**Scope**: ${responsibilities}\n\n## Overview\nHigh-level system topology, domain boundaries, and master delegation strategy.`,
+        updatedAt: Date.now()
+      },
+      {
+        id: `${agentId}-sprint`,
+        title: `Sprint Roadmap (${roleName})`,
+        filename: `sprint_roadmap.md`,
+        category: 'sprint_planning',
+        content: `# Milestone Sprint Roadmap\n\n**Lead**: ${personName}\n\n## Epics & Goals\n- [x] Initialize system hierarchy & delegation chains.\n- [ ] Define cross-domain service interfaces.\n- [ ] Execute validation and verification pipelines.`,
+        updatedAt: Date.now()
+      }
+    ];
+  } else if (isLead) {
+    return [
+      {
+        id: `${agentId}-interface`,
+        title: `Domain Interface (${roleName})`,
+        filename: `domain_interface.md`,
+        category: 'architecture',
+        content: `# Domain Interface & Module Bounds: ${roleName}\n\n**Owner**: ${personName}\n\n## API Contracts & Services\n- Define module communication protocols and data exchange schemas.`,
+        updatedAt: Date.now()
+      },
+      {
+        id: `${agentId}-sop`,
+        title: `Code Review SOP (${roleName})`,
+        filename: `code_review_sop.md`,
+        category: 'procedural',
+        content: `# Code Review & Quality Gates SOP\n\n**Supervisor**: ${personName}\n\n## Guidelines\n1. Enforce strict type safety and schema validation.\n2. Review line-by-line diffs before merging.`,
+        updatedAt: Date.now()
+      }
+    ];
+  } else {
+    return [
+      {
+        id: `${agentId}-toolspec`,
+        title: `Tool API Spec (${roleName})`,
+        filename: `tool_api_spec.md`,
+        category: 'architecture',
+        content: `# Tool & Driver API Specification: ${roleName}\n\n**Developer**: ${personName}\n\n## Endpoints & Schemas\n- Specify input/output parameters, error handling, and driver configurations.`,
+        updatedAt: Date.now()
+      },
+      {
+        id: `${agentId}-sandbox`,
+        title: `Sandbox Config (${roleName})`,
+        filename: `sandbox_config.md`,
+        category: 'procedural',
+        content: `# Sandbox Environment & Test Commands\n\n**Operator**: ${personName}\n\n## Instructions\n- Run linter and compiler tests locally before publishing diffs.`,
+        updatedAt: Date.now()
+      }
+    ];
+  }
 }
 
 export function createFullStackWebProject(name: string = 'Full-Stack Web App'): Project {
@@ -82,13 +102,7 @@ export function createFullStackWebProject(name: string = 'Full-Stack Web App'): 
         }
       ],
       childrenIds: [feLeadId, beLeadId],
-      documents: createAgentDefaultDocs(
-        rootId,
-        'Alice',
-        'Head Architect (Supervisor)',
-        'Oversee full-stack web application scope, define core user features, set high-level system requirements, and delegate down to Frontend & Backend Leads.',
-        'Core Web App Strategy: Modern React single-page application with Express backend API routes, Tailwind CSS styling, and persistent database storage.'
-      )
+      documents: []
     },
     [feLeadId]: {
       id: feLeadId,
@@ -107,13 +121,7 @@ export function createFullStackWebProject(name: string = 'Full-Stack Web App'): 
         }
       ],
       childrenIds: [reactDevId, uiuxDevId],
-      documents: createAgentDefaultDocs(
-        feLeadId,
-        'Bob',
-        'Frontend & UI/UX Lead',
-        'Direct user interface architecture, client-side state management, page navigation, and design system implementation.',
-        ''
-      )
+      documents: []
     },
     [beLeadId]: {
       id: beLeadId,
@@ -132,13 +140,7 @@ export function createFullStackWebProject(name: string = 'Full-Stack Web App'): 
         }
       ],
       childrenIds: [apiDevId, dbDevId],
-      documents: createAgentDefaultDocs(
-        beLeadId,
-        'Carol',
-        'Backend & Cloud API Lead',
-        'Direct server API routes, database integrations, authentication services, and backend business logic.',
-        ''
-      )
+      documents: []
     },
     [reactDevId]: {
       id: reactDevId,
@@ -157,13 +159,7 @@ export function createFullStackWebProject(name: string = 'Full-Stack Web App'): 
         }
       ],
       childrenIds: [],
-      documents: createAgentDefaultDocs(
-        reactDevId,
-        'Dave',
-        'React & State Specialist',
-        'Implement modular React components, state management hooks, form validations, and interactive application views.',
-        ''
-      )
+      documents: []
     },
     [uiuxDevId]: {
       id: uiuxDevId,
@@ -182,13 +178,7 @@ export function createFullStackWebProject(name: string = 'Full-Stack Web App'): 
         }
       ],
       childrenIds: [],
-      documents: createAgentDefaultDocs(
-        uiuxDevId,
-        'Eve',
-        'UI/UX & Design Systems Specialist',
-        'Design responsive layout grids, Tailwind CSS utility patterns, color palettes, typography hierarchy, and accessible transitions.',
-        ''
-      )
+      documents: []
     },
     [apiDevId]: {
       id: apiDevId,
@@ -207,13 +197,7 @@ export function createFullStackWebProject(name: string = 'Full-Stack Web App'): 
         }
       ],
       childrenIds: [],
-      documents: createAgentDefaultDocs(
-        apiDevId,
-        'Frank',
-        'API Services & Controller Developer',
-        'Develop Express router endpoints, request validation middleware, business logic handlers, and error handlers.',
-        ''
-      )
+      documents: []
     },
     [dbDevId]: {
       id: dbDevId,
@@ -232,15 +216,14 @@ export function createFullStackWebProject(name: string = 'Full-Stack Web App'): 
         }
       ],
       childrenIds: [],
-      documents: createAgentDefaultDocs(
-        dbDevId,
-        'Grace',
-        'Database & Data Persistence Engineer',
-        'Design database schemas, query optimizations, data serialization, and persistent storage handlers.',
-        ''
-      )
+      documents: []
     }
   };
+
+  // Populate 5 default docs for each agent automatically
+  for (const [id, agent] of Object.entries(agents)) {
+    agent.documents = createAgentDefaultDocs(id, agent.personName, agent.roleName, agent.responsibilities, agent.decisions);
+  }
 
   const desc = 'A customizable full-stack web app team with Head Architect, Frontend Lead (React, UI/UX), and Backend Lead (APIs, Database).';
   return {
@@ -255,218 +238,42 @@ export function createFullStackWebProject(name: string = 'Full-Stack Web App'): 
 }
 
 export function createDefaultProject(
-  name: string = 'Custom AI Team',
+  name: string = 'New Project',
   template: 'ai' | 'fullstack' | 'head_only' = 'head_only'
 ): Project {
   if (template === 'fullstack') {
     return createFullStackWebProject(name);
   }
 
-  if (template === 'head_only') {
-    const rootId = uuidv4();
-    const headDesc = 'A customizable project starting with a single Head Architect. You can add direct reports and custom team members as needed.';
-    return {
-      id: uuidv4(),
-      name,
-      description: headDesc,
-      createdAt: Date.now(),
-      rootAgentId: rootId,
-      agents: {
-        [rootId]: {
-          id: rootId,
-          parentId: null,
-          roleName: 'Head Architect (Supervisor)',
-          personName: 'Alice',
-          responsibilities: 'Oversee project goals, define strategy, and delegate to custom direct reports as added.',
-          status: 'idle',
-          decisions: 'Project Goal: Custom software platform.',
-          chatHistory: [
-            {
-              id: uuidv4(),
-              role: 'agent',
-              content: 'Hello! I am Alice, the Head Architect. Configure my direct reports in the team editor to build out our specialized workforce.',
-              timestamp: Date.now()
-            }
-          ],
-          childrenIds: [],
-          documents: createAgentDefaultDocs(
-            rootId,
-            'Alice',
-            'Head Architect (Supervisor)',
-            'Oversee project goals, define strategy, and delegate to custom direct reports as added.',
-            'Project Goal: Custom software platform.'
-          )
-        }
-      },
-      genesisDocuments: createProjectGenesisDocuments(name, headDesc)
-    };
-  }
   const rootId = uuidv4();
-  const platformLeadId = uuidv4();
-  const toolsLeadId = uuidv4();
-
-  const controlId = uuidv4();
-  const memoryId = uuidv4();
-  const governanceId = uuidv4();
-
-  const toolAId = uuidv4();
-  const toolBId = uuidv4();
-
-  const agents: Record<string, AgentNode> = {
-    [rootId]: {
-      id: rootId,
-      parentId: null,
-      roleName: 'Head Architect (Supervisor)',
-      personName: 'Alice',
-      responsibilities: 'Oversee entire system architecture, set high-level goals, and delegate sub-tasks to Platform & Tools Leads.',
-      status: 'idle',
-      decisions: 'Core Architectural Goal: Build a modular multi-agent developer system with separate control, memory, and governance layers.',
-      chatHistory: [
-        {
-          id: uuidv4(),
-          role: 'agent',
-          content: 'Hello! I am Alice, the Head Architect. I oversee the overall system design. Tell me about the project goals, and I will structure our architectural strategy and delegate tasks down to our team leads.',
-          timestamp: Date.now()
-        }
-      ],
-      childrenIds: [platformLeadId, toolsLeadId]
-    },
-    [platformLeadId]: {
-      id: platformLeadId,
-      parentId: rootId,
-      roleName: 'Platform Team Lead',
-      personName: 'Bob',
-      responsibilities: 'Lead the core platform infrastructure team comprising Control, Memory, and Governance layers.',
-      status: 'idle',
-      decisions: '',
-      chatHistory: [
-        {
-          id: uuidv4(),
-          role: 'agent',
-          content: 'Hi! I am Bob, leading the Platform infrastructure. My sub-agents (Control, Memory, Governance) handle runtime execution, state persistence, and safety rules.',
-          timestamp: Date.now()
-        }
-      ],
-      childrenIds: [controlId, memoryId, governanceId]
-    },
-    [toolsLeadId]: {
-      id: toolsLeadId,
-      parentId: rootId,
-      roleName: 'Tools Team Lead',
-      personName: 'Carol',
-      responsibilities: 'Lead the developer tools suite, managing specialized tool builders and utility agents.',
-      status: 'idle',
-      decisions: '',
-      chatHistory: [
-        {
-          id: uuidv4(),
-          role: 'agent',
-          content: 'Greetings! I am Carol, Tools Team Lead. My team builds specialized integration tools, code generation utilities, and external API connectors.',
-          timestamp: Date.now()
-        }
-      ],
-      childrenIds: [toolAId, toolBId]
-    },
-    [controlId]: {
-      id: controlId,
-      parentId: platformLeadId,
-      roleName: 'Control Layer Specialist',
-      personName: 'Dave',
-      responsibilities: 'Design orchestrator logic, message routing pipelines, and agent task scheduling controls.',
-      status: 'idle',
-      decisions: '',
-      chatHistory: [
-        {
-          id: uuidv4(),
-          role: 'agent',
-          content: 'Hello, I am Dave. I manage the Control Layer, orchestrating task flow and event messaging between agents.',
-          timestamp: Date.now()
-        }
-      ],
-      childrenIds: []
-    },
-    [memoryId]: {
-      id: memoryId,
-      parentId: platformLeadId,
-      roleName: 'Memory State Specialist',
-      personName: 'Eve',
-      responsibilities: 'Manage state retention, persistent memory storage, prompt history logging, and vector context retrieval.',
-      status: 'idle',
-      decisions: '',
-      chatHistory: [
-        {
-          id: uuidv4(),
-          role: 'agent',
-          content: 'Hi! I am Eve. I manage Memory & State. I ensure every chat, prompt, and decision is recorded persistently for exact historical recall.',
-          timestamp: Date.now()
-        }
-      ],
-      childrenIds: []
-    },
-    [governanceId]: {
-      id: governanceId,
-      parentId: platformLeadId,
-      roleName: 'Governance & Policy Auditor',
-      personName: 'Frank',
-      responsibilities: 'Enforce security rules, API rate limits, access policies, and architectural compliance.',
-      status: 'idle',
-      decisions: '',
-      chatHistory: [
-        {
-          id: uuidv4(),
-          role: 'agent',
-          content: 'Hello, I am Frank. I audit governance, ensuring all agent actions comply with safety rules and system boundaries.',
-          timestamp: Date.now()
-        }
-      ],
-      childrenIds: []
-    },
-    [toolAId]: {
-      id: toolAId,
-      parentId: toolsLeadId,
-      roleName: 'Code Spec & Linter Tool Builder',
-      personName: 'Grace',
-      responsibilities: 'Build automated code synthesis templates, type definition checkers, and syntax validation tools.',
-      status: 'idle',
-      decisions: '',
-      chatHistory: [
-        {
-          id: uuidv4(),
-          role: 'agent',
-          content: 'Hi! I am Grace. I build code synthesis tools and syntax validators for developer workflows.',
-          timestamp: Date.now()
-        }
-      ],
-      childrenIds: []
-    },
-    [toolBId]: {
-      id: toolBId,
-      parentId: toolsLeadId,
-      roleName: 'API & SDK Integration Builder',
-      personName: 'Henry',
-      responsibilities: 'Develop external API connectors, OAuth handlers, and third-party service adapters.',
-      status: 'idle',
-      decisions: '',
-      chatHistory: [
-        {
-          id: uuidv4(),
-          role: 'agent',
-          content: 'Hello! I am Henry. I craft API integration adapters and external SDK interfaces.',
-          timestamp: Date.now()
-        }
-      ],
-      childrenIds: []
-    }
-  };
-
-  const aiDesc = 'A modular, multi-agent AI workforce ecosystem for architectural design, system control, state memory, governance, and tool synthesis.';
+  const desc = 'A customizable project starting with a single Lead Agent. You can configure the hierarchy, add sub-agents, or paste a JSON hierarchy configuration.';
   return {
     id: uuidv4(),
     name,
-    description: aiDesc,
+    description: desc,
     createdAt: Date.now(),
     rootAgentId: rootId,
-    agents,
-    genesisDocuments: createProjectGenesisDocuments(name, aiDesc)
+    agents: {
+      [rootId]: {
+        id: rootId,
+        parentId: null,
+        roleName: 'Lead Architect',
+        personName: 'Lead',
+        responsibilities: 'Oversee project goals, define strategy, and manage hierarchy.',
+        status: 'idle',
+        decisions: 'Project Goal: Customizable multi-agent structure.',
+        chatHistory: [
+          {
+            id: uuidv4(),
+            role: 'agent',
+            content: 'Hello! I am the Lead Architect. Configure the hierarchy or paste your JSON configuration to get started.',
+            timestamp: Date.now()
+          }
+        ],
+        childrenIds: [],
+        documents: []
+      }
+    },
+    genesisDocuments: createProjectGenesisDocuments(name, desc)
   };
 }

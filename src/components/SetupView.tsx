@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Project, AgentNode } from '../types';
 import { 
   ArrowLeft, User, Plus, Trash2, Play, Upload, FileCode, Download, Copy, Check, Code, 
-  AlertCircle, X, FileText, ZoomIn, ZoomOut, Maximize2, RotateCcw, List, Grid, Users, LayoutGrid
+  AlertCircle, X, FileText, ZoomIn, ZoomOut, Maximize2, RotateCcw, List, Grid, Users, LayoutGrid, ChevronRight, ChevronLeft
 } from 'lucide-react';
 import { cn } from '../utils';
 
@@ -26,6 +26,19 @@ export function SetupView({ project, onStartExecution, onBack }: SetupViewProps)
   const [viewDensity, setViewDensity] = useState<'normal' | 'compact' | 'list'>('normal');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mainRef = useRef<HTMLElement | null>(null);
+
+  const scrollRight = () => {
+    if (mainRef.current) {
+      mainRef.current.scrollBy({ left: 350, behavior: 'smooth' });
+    }
+  };
+
+  const scrollLeft = () => {
+    if (mainRef.current) {
+      mainRef.current.scrollBy({ left: -350, behavior: 'smooth' });
+    }
+  };
 
   const totalAgentsCount = Object.keys(localProject.agents || {}).length;
 
@@ -583,17 +596,37 @@ export function SetupView({ project, onStartExecution, onBack }: SetupViewProps)
       </div>
 
       {/* Main Visual Canvas or List View */}
-      <main className="flex-1 overflow-auto bg-neutral-50/50 p-6 flex justify-center items-start">
+      <main ref={mainRef} className="relative flex-1 overflow-auto bg-neutral-50/50 p-8 flex justify-center items-start">
+        {/* Left Scroll Button */}
+        <button
+          onClick={scrollLeft}
+          className="absolute left-6 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-neutral-700 hover:text-indigo-600 p-3 rounded-full shadow-lg border border-neutral-200 transition-all flex items-center justify-center group"
+          title="Scroll Left"
+        >
+          <ChevronLeft className="w-5 h-5 transition-transform group-hover:-translate-x-0.5" />
+        </button>
+
+        {/* Right Scroll Button */}
+        <button
+          onClick={scrollRight}
+          className="absolute right-6 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-neutral-700 hover:text-indigo-600 p-3 rounded-full shadow-lg border border-neutral-200 transition-all flex items-center justify-center group"
+          title="Scroll Right"
+        >
+          <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5" />
+        </button>
+
         {viewDensity === 'list' ? (
           <div className="w-full max-w-5xl space-y-3 pb-16">
             {renderListNode(localProject.rootAgentId)}
           </div>
         ) : (
-          <div 
-            className="min-w-max pb-16 transition-transform duration-150 ease-out origin-top"
-            style={{ transform: `scale(${zoomLevel})` }}
-          >
-            {renderNode(localProject.rootAgentId)}
+          <div className="min-w-max min-h-max pb-24 pt-4 flex justify-center">
+            <div 
+              className="transition-transform duration-150 ease-out origin-top"
+              style={{ transform: `scale(${zoomLevel})` }}
+            >
+              {renderNode(localProject.rootAgentId)}
+            </div>
           </div>
         )}
       </main>
@@ -696,42 +729,42 @@ export function SetupView({ project, onStartExecution, onBack }: SetupViewProps)
 
             <div className="flex-1 overflow-auto bg-neutral-900 text-emerald-400 font-mono text-xs p-4 rounded-xl leading-relaxed mb-4">
               <pre>{JSON.stringify({
-  name: "ARCHI Enterprise Cloud Architecture",
+  name: "Custom Project Hierarchy",
   rootAgentId: "root-1",
   agents: {
     "root-1": {
       id: "root-1",
       parentId: null,
-      roleName: "Head Architect",
-      personName: "Alice",
-      responsibilities: "Overall system topology, governance, and master blueprint.",
+      roleName: "Lead Architect",
+      personName: "Lead",
+      responsibilities: "Overall project strategy, governance, and master blueprint.",
       status: "idle",
-      childrenIds: ["lead-fe", "lead-be"]
+      childrenIds: ["lead-1", "lead-2"]
     },
-    "lead-fe": {
-      id: "lead-fe",
+    "lead-1": {
+      id: "lead-1",
       parentId: "root-1",
-      roleName: "Frontend & UI/UX Lead",
-      personName: "Bob",
-      responsibilities: "Client architecture, component libraries, and visual design.",
+      roleName: "Division Lead A",
+      personName: "Manager A",
+      responsibilities: "Direct sub-system architecture and module design.",
       status: "idle",
-      childrenIds: ["spec-react"]
+      childrenIds: ["spec-1"]
     },
-    "spec-react": {
-      id: "spec-react",
-      parentId: "lead-fe",
-      roleName: "React & State Specialist",
-      personName: "Frank",
-      responsibilities: "Client state management and interactive UI components.",
+    "spec-1": {
+      id: "spec-1",
+      parentId: "lead-1",
+      roleName: "Specialist Developer",
+      personName: "Developer A",
+      responsibilities: "Implementation and component development.",
       status: "idle",
       childrenIds: []
     },
-    "lead-be": {
-      id: "lead-be",
+    "lead-2": {
+      id: "lead-2",
       parentId: "root-1",
-      roleName: "Backend Services Lead",
-      personName: "Carol",
-      responsibilities: "API routes, microservice boundaries, and business logic.",
+      roleName: "Division Lead B",
+      personName: "Manager B",
+      responsibilities: "Direct auxiliary services and integration pipelines.",
       status: "idle",
       childrenIds: []
     }
@@ -743,33 +776,33 @@ export function SetupView({ project, onStartExecution, onBack }: SetupViewProps)
               <button
                 onClick={() => {
                   const sampleJson = JSON.stringify({
-                    name: "ARCHI Enterprise Cloud Architecture",
+                    name: "Custom Project Hierarchy",
                     rootAgentId: "root-1",
                     agents: {
                       "root-1": {
                         id: "root-1",
                         parentId: null,
-                        roleName: "Head Architect",
-                        personName: "Alice",
-                        responsibilities: "Overall system topology, governance, and master blueprint.",
+                        roleName: "Lead Architect",
+                        personName: "Lead",
+                        responsibilities: "Overall project strategy, governance, and master blueprint.",
                         status: "idle",
-                        childrenIds: ["lead-fe", "lead-be"]
+                        childrenIds: ["lead-1", "lead-2"]
                       },
-                      "lead-fe": {
-                        id: "lead-fe",
+                      "lead-1": {
+                        id: "lead-1",
                         parentId: "root-1",
-                        roleName: "Frontend & UI/UX Lead",
-                        personName: "Bob",
-                        responsibilities: "Client architecture, component libraries, and visual design.",
+                        roleName: "Division Lead A",
+                        personName: "Manager A",
+                        responsibilities: "Direct sub-system architecture and module design.",
                         status: "idle",
                         childrenIds: []
                       },
-                      "lead-be": {
-                        id: "lead-be",
+                      "lead-2": {
+                        id: "lead-2",
                         parentId: "root-1",
-                        roleName: "Backend Services Lead",
-                        personName: "Carol",
-                        responsibilities: "API routes, microservice boundaries, and business logic.",
+                        roleName: "Division Lead B",
+                        personName: "Manager B",
+                        responsibilities: "Direct auxiliary services and integration pipelines.",
                         status: "idle",
                         childrenIds: []
                       }

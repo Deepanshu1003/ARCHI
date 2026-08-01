@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Network, Plus, FolderOpen, Trash2, Edit3, Play, Users, Sparkles, Info } from 'lucide-react';
+import { Network, Plus, FolderOpen, Trash2, Edit3, Play, Users, Sparkles, Info, Code } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 import { Project } from '../types';
 import { createDefaultProject } from '../utils/defaultProject';
 import { ProjectOverviewModal } from './ProjectOverviewModal';
@@ -16,8 +17,9 @@ interface HomeViewProps {
 
 export function HomeView({ projects, onStartNew, onOpenProject, onEditProject, onDeleteProject, onDeleteAllProjects, onUpdateProject }: HomeViewProps) {
   const [showModal, setShowModal] = useState(false);
-  const [projectNameInput, setProjectNameInput] = useState('Custom AI Team');
-  const [templateChoice] = useState<'fullstack' | 'ai' | 'head_only'>('head_only');
+  const [projectNameInput, setProjectNameInput] = useState('Enterprise AI Ecosystem');
+  const [jsonInput, setJsonInput] = useState('');
+  const [jsonError, setJsonError] = useState('');
   
   // Overview and Delete modal states
   const [overviewProject, setOverviewProject] = useState<Project | null>(null);
@@ -28,11 +30,48 @@ export function HomeView({ projects, onStartNew, onOpenProject, onEditProject, o
     e.preventDefault();
     if (!projectNameInput.trim()) return;
 
+    if (jsonInput.trim()) {
+      try {
+        let parsed: any;
+        const raw = jsonInput.trim();
+        try {
+          parsed = JSON.parse(raw);
+        } catch (jsonErr) {
+          // Fallback to evaluating JS object literal if standard JSON.parse fails (e.g. unquoted keys)
+          parsed = (new Function('return ' + raw))();
+        }
+
+        if (!parsed || !parsed.agents || !parsed.rootAgentId) {
+          throw new Error('Invalid project JSON structure: missing agents or rootAgentId.');
+        }
+        const newProject: Project = {
+          id: parsed.id || uuidv4(),
+          name: projectNameInput.trim() || parsed.name || 'Custom Project',
+          description: parsed.description || 'Imported team structure.',
+          createdAt: parsed.createdAt || Date.now(),
+          rootAgentId: parsed.rootAgentId,
+          agents: parsed.agents,
+          genesisDocuments: parsed.genesisDocuments || []
+        };
+        onStartNew(newProject);
+        setShowModal(false);
+        setProjectNameInput('Enterprise AI Ecosystem');
+        setJsonInput('');
+        setJsonError('');
+        return;
+      } catch (err: any) {
+        setJsonError(err.message || 'Invalid JSON format');
+        return;
+      }
+    }
+
     const newProject = createDefaultProject(projectNameInput.trim(), 'head_only');
 
     onStartNew(newProject);
     setShowModal(false);
-    setProjectNameInput('Custom AI Team');
+    setProjectNameInput('Enterprise AI Ecosystem');
+    setJsonInput('');
+    setJsonError('');
   };
 
   return (
@@ -287,15 +326,31 @@ export function HomeView({ projects, onStartNew, onOpenProject, onEditProject, o
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-2">
                   Team Structure
                 </label>
-                <div className="p-4 rounded-xl border-2 border-indigo-500 bg-indigo-50/50 flex items-start gap-3">
+                <div className="p-4 rounded-xl border-2 border-indigo-500 bg-indigo-50/50 flex items-start gap-3 mb-4">
                   <Users className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-bold text-neutral-900">Custom Organization & Team</p>
                     <p className="text-xs text-neutral-600 mt-0.5 leading-relaxed">
-                      Start with Alice (Head Architect) and build your custom team hierarchy. Add direct reports, customize personas, and define domain responsibilities for your project.
+                      Start with Head Architect and build your custom team hierarchy or paste your team JSON below.
                     </p>
                   </div>
                 </div>
+
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-600 mb-2 flex items-center gap-1.5">
+                  <Code className="w-3.5 h-3.5 text-indigo-600" />
+                  Paste Team JSON (Optional)
+                </label>
+                <textarea
+                  value={jsonInput}
+                  onChange={(e) => {
+                    setJsonInput(e.target.value);
+                    setJsonError('');
+                  }}
+                  placeholder="Paste project JSON structure here to import your team hierarchy..."
+                  rows={4}
+                  className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-xs font-mono outline-none focus:border-indigo-500 focus:bg-white transition-all resize-y"
+                />
+                {jsonError && <p className="text-xs text-red-500 mt-1 font-medium">{jsonError}</p>}
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-neutral-100">

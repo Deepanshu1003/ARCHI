@@ -14,15 +14,13 @@ export default function App() {
   // Load projects from API / localStorage on mount
   useEffect(() => {
     async function loadProjects() {
+      let backendProjects: Project[] = [];
       try {
         const res = await fetch('/api/projects');
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data)) {
-            setProjects(data);
-            localStorage.setItem('agentic_projects', JSON.stringify(data));
-            setLoading(false);
-            return;
+            backendProjects = data;
           }
         }
       } catch (err) {
@@ -31,20 +29,39 @@ export default function App() {
 
       // Check localStorage fallback
       const local = localStorage.getItem('agentic_projects');
+      let localProjects: Project[] = [];
       if (local) {
         try {
           const parsed = JSON.parse(local);
           if (Array.isArray(parsed)) {
-            setProjects(parsed);
-            setLoading(false);
-            return;
+            localProjects = parsed;
           }
         } catch (e) {
           console.error('Error parsing localStorage projects', e);
         }
       }
 
-      setProjects([]);
+      // Merge / sync: if backend has projects, use them. If backend is empty but local has projects, persist local projects to backend!
+      let finalProjects = backendProjects;
+      if (backendProjects.length === 0 && localProjects.length > 0) {
+        finalProjects = localProjects;
+        // Push local projects to backend database
+        for (const p of localProjects) {
+          try {
+            await fetch('/api/projects', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(p)
+            });
+          } catch (e) {
+            console.warn('Failed to sync local project to backend db:', e);
+          }
+        }
+      } else if (backendProjects.length > 0) {
+        localStorage.setItem('agentic_projects', JSON.stringify(backendProjects));
+      }
+
+      setProjects(finalProjects);
       setLoading(false);
     }
 
