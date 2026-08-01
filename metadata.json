@@ -1,0 +1,8 @@
+{
+  "name": "ARCHI",
+  "description": "ARCHI (Agentic Role-based Collaborative Hierarchical Infrastructure) is an enterprise multi-agent management platform. It enables teams to define hierarchical AI workforces, delegate architectural domain plans top-down, refine specifications, and approve bottom-up textual diff updates seamlessly.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
