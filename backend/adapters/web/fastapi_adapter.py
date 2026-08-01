@@ -182,6 +182,34 @@ async def create_project(req: CreateProjectRequest) -> Dict[str, Any]:
     )
 
     await memory_repository.save_project(project)
+    
+    # Save raw project payload for full state persistence across reloads
+    raw_agents: Dict[str, Any] = {}
+    for aid, arole in agents_map.items():
+        raw_agents[aid] = {
+            "id": arole.id,
+            "personName": arole.person_name,
+            "roleName": arole.role_name,
+            "responsibilities": arole.responsibilities,
+            "parentId": arole.parent_id,
+            "childrenIds": arole.children_ids,
+            "status": arole.status.value,
+            "decisions": "",
+            "chatHistory": []
+        }
+    
+    raw_project = {
+        "id": project.project_id,
+        "name": project.name,
+        "createdAt": 1700000000000,
+        "rootAgentId": project.root_agent_id,
+        "agents": raw_agents,
+        "masterBlueprint": "",
+        "domainSlices": {},
+        "pendingApprovals": {}
+    }
+    await memory_repository.save_raw_project(raw_project)
+
     return {
         "status": "success",
         "project_id": project.project_id,
