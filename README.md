@@ -6,7 +6,7 @@ An enterprise-grade full-stack AI organizational architecture management platfor
 
 ## 📌 300-Character Project Summary
 
-> **ARCHI is a full-stack multi-agent platform for collaborative software architecture. Powered by React, Express, Gemini AI, and Python Clean Architecture, it enforces top-down direct-report delegation, bottom-up textual diff reviews, and deterministic state transitions across custom workforce hierarchies.**
+> **ARCHI is a full-stack multi-agent platform for collaborative software architecture. Powered by React, FastAPI, Gemini AI, and Python Clean Architecture, it enforces top-down direct-report delegation, bottom-up textual diff reviews, and deterministic state transitions across custom workforce hierarchies.**
 
 ---
 
@@ -120,49 +120,18 @@ ARCHI uses a standardized JSON schema to represent team member personas, roles, 
 
 ```
 .
-├── backend/
-│   ├── core/                       # Pure Python Clean Architecture Domain Layer
-│   │   ├── domain/                 # Domain Models & Deterministic State Machine
-│   │   │   ├── models.py           # AgentRole, ArchitectureSlice, ProjectArchitecture, AgentStatus
-│   │   │   └── state_machine.py    # AgentStateMachine transition rules
-│   │   └── ports/                  # Abstract Ports (Agent, Delegation, Memory, Governance, EventBus)
-│   │       ├── agent_port.py       # AI chat & generation interface
-│   │       ├── delegation_port.py  # Master blueprint slicing interface
-│   │       ├── memory_port.py      # Architecture slice & project persistence interface
-│   │       ├── governance_port.py  # Boundary & schema validation interface
-│   │       └── event_bus_port.py   # Downward delegation & upward diff publishing interface
-│   ├── adapters/                   # Hexagonal Adapters
-│   │   ├── web/
-│   │   │   └── fastapi_adapter.py  # Production FastAPI REST Web Adapter (7 Endpoints)
-│   │   ├── event_bus/
-│   │   │   └── in_memory_event_bus.py # EventBus & Textual Diff Approval Engine
-│   │   ├── memory/
-│   │   │   └── in_memory_repository.py # In-Memory & Disk Repository
-│   │   ├── agent/
-│   │   │   └── gemini_agent_adapter.py # Gemini 3.6 Flash Agent Adapter
-│   │   └── delegation/
-│   │       └── llm_delegation_adapter.py # Blueprint Slicing Adapter
-│   └── test_adapters.py            # Automated Integration Test Suite (11 Agents)
+├── archi-v2/
+│   ├── backend/                    # Pure Python + FastAPI. Owns all state.
+│   │   ├── core/                   # Domain models, state machine, ports (no third-party deps)
+│   │   ├── agents/                 # Behavior: chat/draft, delegation, submission, planner, merger
+│   │   ├── adapters/               # llm (gemini/offline/chain), memory, event_bus, governance, documents
+│   │   ├── api/                    # FastAPI app, routers, camelCase DTOs
+│   │   ├── config/settings.py      # The one place env vars are read
+│   │   └── tests/                  # unit (no I/O) + integration (HTTP round-trips)
+│   └── frontend/                   # React + Vite, calls FastAPI directly
+│       └── src/api/                # Typed client: types.ts, client.ts, mappers.ts
 │
-├── server.ts                       # Express backend server & REST API endpoints (/api/chat, /api/delegate)
-├── data/
-│   ├── projects.json               # Backend persistent project store
-│   └── python_memory.json          # Python memory execution log
-├── src/
-│   ├── App.tsx                     # React application router & root state container
-│   ├── types.ts                    # TypeScript interface definitions
-│   ├── services/
-│   │   └── api.ts                  # Typed API Client Service
-│   ├── components/
-│   │   ├── HomeView.tsx            # Project selection home screen with template choices
-│   │   ├── SetupView.tsx           # Interactive Tree Setup & JSON Upload/Paste Editor
-│   │   ├── DashboardView.tsx       # Agent workspace chat, decision editor & diff review modal
-│   │   └── ProjectOverviewModal.tsx # Project metadata & roster viewer
-│   └── python_core/                # Standalone Python multi-agent execution pipeline
-│       ├── main.py                 # Python orchestrator entry point
-│       ├── agents/                 # BaseAgent, LeadAgent, SpecialistAgent
-│       └── utils/                  # MemoryStore and LLM Client
-│
+├── documentation/                  # Long-form technical documentation
 ├── PROJECT_DOCUMENTATION.md        # Comprehensive Technical Specification & Master Manual
 └── README.md                       # Project overview (this file)
 ```
@@ -178,18 +147,24 @@ For detailed technical specifications, API schemas, domain models, state machine
 
 ## 🚀 Quick Start & Execution
 
-1. **Start Development Web Application**:
+1. **Backend** (`http://localhost:8000`):
    ```bash
+   cd archi-v2/backend
+   python -m venv .venv && source .venv/bin/activate
+   pip install -r requirements.txt
+   export GEMINI_API_KEY=...   # optional; without it the offline provider answers
+   uvicorn backend.api.main:app --reload --app-dir ..
+   ```
+
+2. **Frontend** (`http://localhost:5173`):
+   ```bash
+   cd archi-v2/frontend
+   npm install
    npm run dev
    ```
-   Open `http://localhost:3000` in your browser.
 
-2. **Run Python Integration Test Suite (11 Agents & Approval Engine)**:
+3. **Tests**:
    ```bash
-   PYTHONPATH=. python3 backend/test_adapters.py
-   ```
-
-3. **Run Standalone Python Core Orchestrator**:
-   ```bash
-   python3 src/python_core/main.py
+   cd archi-v2 && pytest
+   cd frontend && npm run lint && npm run build
    ```

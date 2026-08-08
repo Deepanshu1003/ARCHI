@@ -6,3 +6,16 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Backend runtime state
+archi-v2/backend/data/
+
+# Vite
+.vite/
