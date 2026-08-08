@@ -24,6 +24,7 @@ This repository contains two major versions of ARCHI:
 
 **Quick Start**:
 ```bash
+git checkout archi-v1-full-stack
 npm run dev
 # Opens http://localhost:3000
 ```
@@ -47,14 +48,16 @@ npm run dev
 
 **Quick Start**:
 ```bash
-# Backend (http://localhost:8000)
+git checkout archi-v2-optimized
 cd archi-v2
+
+# Backend (http://localhost:8000)
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r backend/requirements.txt
 uvicorn backend.api.main:app --reload --app-dir .
 
 # Frontend (http://localhost:5173) — second terminal
-cd archi-v2/frontend
+cd frontend
 npm install && npm run dev
 ```
 
@@ -89,78 +92,6 @@ npm install && npm run dev
 
 ---
 
-## 📋 JSON Configuration
-
-Both versions use the same standardized JSON schema:
-
-```json
-{
-  "name": "ARCHI Enterprise Cloud Architecture",
-  "rootAgentId": "root-1",
-  "agents": {
-    "root-1": {
-      "id": "root-1",
-      "parentId": null,
-      "roleName": "Head Architect",
-      "personName": "Alice",
-      "responsibilities": "Overall system topology and master blueprint.",
-      "status": "idle",
-      "childrenIds": ["lead-fe", "lead-be"]
-    },
-    "lead-fe": {
-      "id": "lead-fe",
-      "parentId": "root-1",
-      "roleName": "Frontend & UI/UX Lead",
-      "personName": "Bob",
-      "responsibilities": "Client architecture and component design.",
-      "status": "idle",
-      "childrenIds": []
-    }
-  }
-}
-```
-
----
-
-## 🚀 Recommended Version
-
-**For New Projects**: Use `archi-v2-optimized`
-- Simpler architecture
-- Better performance
-- No Node.js overhead
-- Easier deployment
-
-**For Legacy Support**: Use `archi-v1-full-stack`
-- Full-featured implementation
-- Node/Express integration available
-- Comprehensive documentation in branch
-
----
-
-## 📖 Documentation
-
-Detailed documentation for each version is available in their respective branches:
-
-- **v1**: `git checkout archi-v1-full-stack` → Read `PROJECT_DOCUMENTATION.md`
-- **v2**: `git checkout archi-v2-optimized` → Read `archi-v2/docs/` directory
-
----
-
-## 🧪 Testing
-
-**v1 Full-Stack**:
-```bash
-PYTHONPATH=. python3 backend/test_adapters.py
-```
-
-**v2 Optimized**:
-```bash
-cd archi-v2 && pytest
-cd archi-v2/frontend && npm run lint && npm run build
-```
-
----
-
 ## 🛠️ Requirements
 
 - **Python**: 3.10+
@@ -169,12 +100,30 @@ cd archi-v2/frontend && npm run lint && npm run build
 
 ---
 
-## 📝 License & Attribution
+## 🚀 Getting Started
 
-ARCHI is an enterprise multi-agent management platform for architectural collaboration and hierarchical delegation.
+**For New Projects**: Use `archi-v2-optimized` (recommended)
+- Simpler architecture
+- Better performance
+- No Node.js overhead
+- Easier deployment
+
+**For Legacy Support**: Use `archi-v1-full-stack`
+- Full-featured implementation
+- Node/Express integration
+- Comprehensive documentation
 
 ---
 
 **Ready to start?** Choose your branch:
-- 👉 `git checkout archi-v1-full-stack` (Full-stack with Node/Express)
-- 👉 `git checkout archi-v2-optimized` (Modern FastAPI-only)
+```bash
+git checkout archi-v1-full-stack    # Full-stack with Node/Express
+# OR
+git checkout archi-v2-optimized     # Modern FastAPI-only
+```
+
+---
+
+## 📝 License & Attribution
+
+ARCHI is an enterprise multi-agent management platform for architectural collaboration and hierarchical delegation.
