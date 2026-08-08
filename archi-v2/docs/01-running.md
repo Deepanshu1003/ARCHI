@@ -42,7 +42,9 @@ to `http://localhost:8000`.
 
 ## 3. Configuration
 
-Copy `archi-v2/.env.example` and set what you need. Everything is optional.
+Copy `archi-v2/.env.example` to `archi-v2/.env` and set what you need;
+everything is optional. The backend loads that file at startup, and a real
+exported environment variable overrides whatever the file says.
 
 | Variable | Default | Effect |
 |---|---|---|
@@ -61,7 +63,7 @@ cached), so changing a variable means restarting uvicorn.
 ## 4. Tests and checks
 
 ```bash
-cd archi-v2 && pytest              # 43 tests: unit (no I/O) + integration (HTTP)
+cd archi-v2 && pytest              # unit (no I/O) + integration (HTTP)
 cd archi-v2/frontend
 npm run lint                       # tsc --noEmit
 npm run build                      # vite build

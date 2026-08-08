@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import List, Tuple
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = BACKEND_ROOT.parent
 DEFAULT_DATA_DIR = BACKEND_ROOT / "data"
+ENV_FILE = PROJECT_ROOT / ".env"
 
 # Extensions accepted for document uploads. A PDF-extraction adapter can be
 # added later without callers changing.
@@ -18,6 +20,22 @@ DEFAULT_UPLOAD_EXTENSIONS: Tuple[str, ...] = (".md", ".txt")
 
 def _split_csv(raw: str) -> List[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def load_env_file(path: Path = ENV_FILE) -> None:
+    """Loads ``archi-v2/.env`` into the process environment, if present.
+
+    Real environment variables always win, so an exported key overrides the
+    file. Only ``KEY=value`` lines are read; anything else is ignored.
+    """
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, _, value = stripped.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip("'\""))
 
 
 @dataclass(frozen=True)
@@ -46,6 +64,7 @@ class Settings:
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Reads configuration from the environment exactly once per process."""
+    load_env_file()
     data_dir = os.environ.get("ARCHI_DATA_DIR", "").strip()
     origins = os.environ.get("ARCHI_CORS_ORIGINS", "").strip()
     chain = os.environ.get("ARCHI_LLM_PROVIDERS", "").strip()

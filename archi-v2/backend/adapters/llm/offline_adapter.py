@@ -20,13 +20,21 @@ class OfflineAdapter(AgentPort):
     def __init__(self, reason: str = "No LLM provider available.") -> None:
         self.reason = reason
 
+    @staticmethod
+    def _quote(text: str) -> str:
+        """Blockquotes inherited context so it reads as quoted, not authored."""
+        return "\n".join(f"> {line}" for line in text.splitlines())
+
     async def chat(
         self, agent: AgentRole, history: List[Dict[str, str]], message: str
     ) -> LLMReply:
+        # The prompt carries the agent's standing context; echoing it back would
+        # dump the whole roster into the chat transcript.
         text = (
             f"**Offline response — no model was called.**\n\n"
-            f"{agent.person_name} ({agent.role_name}) received: \"{message}\"\n\n"
-            f"Scope: {agent.responsibilities or 'not yet specified'}."
+            f"{agent.person_name} ({agent.role_name}) cannot answer without an LLM "
+            "provider. Set `GEMINI_API_KEY` and restart the backend, or write the "
+            "plan directly in the Raw Editor."
         )
         return LLMReply(text=text, provider=self.name, degraded=True, reason=self.reason)
 
@@ -36,7 +44,7 @@ class OfflineAdapter(AgentPort):
             f"> Generated without an LLM. Configure a provider for a real blueprint.\n\n"
             f"**Author**: {agent.person_name}\n"
             f"**Scope**: {agent.responsibilities or 'not yet specified'}\n\n"
-            f"## Context\n{context or 'No context supplied.'}\n\n"
+            f"## Inherited context\n{self._quote(context) if context else '> None supplied.'}\n\n"
             "## Sections to complete\n"
             "1. Module boundaries and ownership\n"
             "2. Data models and persistence\n"
