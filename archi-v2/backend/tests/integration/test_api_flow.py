@@ -244,3 +244,89 @@ async def test_persistence_outlives_the_app_instance(client, project_payload, ap
     reloaded = await JsonFileRepository(settings).get_project("project-test")
     assert reloaded is not None
     assert reloaded.name == "Test Project"
+
+async def test_lifecycle_fills_the_plan_slots_and_the_blueprint(
+    client, project_payload
+) -> None:
+    """Draft, delegate and approve must all show up in the plan documents."""
+    await create_project(client, project_payload)
+
+    await client.post(f"{BASE}/project-test/architecture/draft", json={"agentId": "agent-root"})
+    root_docs = (await client.get(f"{BASE}/project-test/agents/agent-root/documents")).json()
+    root_plan = next(d for d in root_docs["documents"] if d["docType"] == "plan")
+    assert root_plan["isPopulated"] is True
+
+    await client.post(
+        f"{BASE}/project-test/architecture/delegate", json={"agentId": "agent-root"}
+    )
+    api_docs = (await client.get(f"{BASE}/project-test/agents/agent-api/documents")).json()
+    api_plan = next(d for d in api_docs["documents"] if d["docType"] == "plan")
+    assert api_plan["isPopulated"] is True
+
+    blueprint = (await client.get(f"{BASE}/project-test/architecture/blueprint")).json()
+    assert [s["agentId"] for s in blueprint["sections"]] == [
+        "agent-root",
+        "agent-api",
+        "agent-ui",
+    ]
+    assert blueprint["isFinal"] is False
+    assert "Grace" in blueprint["pendingAgents"]
+    assert "Build Plan" in blueprint["markdown"]
+
+
+async def test_blueprint_turns_final_once_every_report_is_approved(
+    client, project_payload
+) -> None:
+    await create_project(client, project_payload)
+    await client.post(f"{BASE}/project-test/architecture/draft", json={"agentId": "agent-root"})
+    await client.post(
+        f"{BASE}/project-test/architecture/delegate", json={"agentId": "agent-root"}
+    )
+    for agent_id in ("agent-api", "agent-ui"):
+        await client.post(
+            f"{BASE}/project-test/architecture/submit", json={"agentId": agent_id}
+        )
+        approve = await client.post(
+            f"{BASE}/project-test/architecture/approve",
+            json={"supervisorId": "agent-root", "subordinateId": agent_id},
+        )
+        assert approve.status_code == 200, approve.text
+
+    blueprint = (await client.get(f"{BASE}/project-test/architecture/blueprint")).json()
+    assert blueprint["isFinal"] is True
+    assert blueprint["pendingAgents"] == []
+    assert "FINAL" in blueprint["markdown"]
+
+
+async def test_publishing_a_draft_blueprint_is_refused(client, project_payload) -> None:
+    await create_project(client, project_payload)
+    response = await client.post(f"{BASE}/project-test/architecture/blueprint/publish")
+    assert response.status_code == 409
+    assert "not final yet" in response.json()["detail"]
+
+
+async def test_publishing_a_final_blueprint_freezes_the_public_spec(
+    client, project_payload
+) -> None:
+    await create_project(client, project_payload)
+    await client.post(f"{BASE}/project-test/architecture/draft", json={"agentId": "agent-root"})
+    await client.post(
+        f"{BASE}/project-test/architecture/delegate", json={"agentId": "agent-root"}
+    )
+    for agent_id in ("agent-api", "agent-ui"):
+        await client.post(
+            f"{BASE}/project-test/architecture/submit", json={"agentId": agent_id}
+        )
+        await client.post(
+            f"{BASE}/project-test/architecture/approve",
+            json={"supervisorId": "agent-root", "subordinateId": agent_id},
+        )
+
+    published = await client.post(f"{BASE}/project-test/architecture/blueprint/publish")
+    assert published.status_code == 200, published.text
+    assert published.json()["isPublished"] is True
+    assert "FINAL" in published.json()["publishedSpec"]
+
+    reread = (await client.get(f"{BASE}/project-test/architecture/blueprint")).json()
+    assert reread["isPublished"] is True
+    assert reread["publishedSpec"] == published.json()["publishedSpec"]

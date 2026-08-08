@@ -146,3 +146,34 @@ export interface HealthResponse {
   llmProviders: string[];
   geminiConfigured: boolean;
 }
+
+export interface WireBlueprintSection {
+  agentId: string;
+  personName: string;
+  roleName: string;
+  responsibilities: string;
+  parentId: string | null;
+  depth: number;
+  status: WireAgentStatus;
+  statusLabel: string;
+  plan: string;
+  principles: string;
+  planVersion: number;
+  updatedAt: number;
+  isFinal: boolean;
+  hasPlan: boolean;
+}
+
+export interface BlueprintResponse {
+  projectId: string;
+  name: string;
+  rootAgentId: string;
+  generatedAt: number;
+  isFinal: boolean;
+  pendingAgents: string[];
+  statusCounts: Record<string, number>;
+  sections: WireBlueprintSection[];
+  markdown: string;
+  publishedSpec: string;
+  isPublished: boolean;
+}

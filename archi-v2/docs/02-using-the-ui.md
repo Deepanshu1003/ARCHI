@@ -92,12 +92,42 @@ before and after the merge, then **Approve** or **Request Revision**.
 
 Repeat up the tree; the root's plan becomes the assembled blueprint.
 
+## Step 4 — Build Plan & Spec
+
+**Build Plan & Spec** in the top bar opens the project-wide view, available
+from every workspace. It has two tabs:
+
+- **Build Plan by Team** — one section per agent in reporting order, indented
+  by depth, showing that agent's responsibilities, status, principles and
+  current plan. This is where the work is split by responsibility: each agent's
+  section is exactly the slice it owns.
+- **Public Domain Spec** — the frozen, published copy of that plan. Empty until
+  you publish.
+
+A banner at the top says whether the plan is **draft** or **final** and names
+every agent still holding it up. A report's section is final once its
+supervisor approves it; the root's is final once every descendant is approved
+and the root holds the merged plan.
+
+**Publish Domain Spec** is disabled while the plan is a draft, and the server
+refuses the call too (HTTP 409) — so an incomplete plan can never be handed out
+as final. Publishing freezes the assembled markdown as the public spec;
+publishing again after further changes overwrites it. **Copy Markdown** and
+**Download** export whichever tab you are on.
+
 ## Documents
 
 Every agent has exactly two document tabs, both empty at creation:
 
-- **Principles** — the constraints and standards this agent must follow.
-- **Plan** — its current dev plan, versioned on every write.
+- **Principles** — the constraints, inherited context and boundaries this agent
+  must respect. The agent re-reads this every time it drafts or chats, so it is
+  the place to put the rules you want obeyed.
+- **Plan** — the work this agent owns, versioned on every write. It is filled
+  automatically by **Build Architecture** (its own draft), by **Finalize &
+  Delegate** on its supervisor (the slice handed down to it), and by an
+  approval (the merged result on the supervisor). The **Build Plan** view is
+  built from these plan slots, so anything written here shows up in the
+  project-wide plan.
 
 There is no way to add a third; the two slots are created server-side with the
 agent. Populate them two ways:

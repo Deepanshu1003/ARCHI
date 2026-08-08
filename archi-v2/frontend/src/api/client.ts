@@ -10,6 +10,7 @@ import { AgentNode, Project } from '../types';
 import { toAgentPayload, toProject } from './mappers';
 import {
   ApproveResponse,
+  BlueprintResponse,
   ChatResponse,
   DelegateResponse,
   DocumentListResponse,
@@ -184,6 +185,18 @@ export async function requestRevision(
   await request(
     `/api/projects/${projectId}/architecture/request-revision`,
     json({ supervisorId, subordinateId }),
+  );
+}
+
+export async function getBlueprint(projectId: string): Promise<BlueprintResponse> {
+  return request<BlueprintResponse>(`/api/projects/${projectId}/architecture/blueprint`);
+}
+
+/** Rejected with 409 while any agent is still unapproved. */
+export async function publishBlueprint(projectId: string): Promise<BlueprintResponse> {
+  return request<BlueprintResponse>(
+    `/api/projects/${projectId}/architecture/blueprint/publish`,
+    { method: 'POST' },
   );
 }
 

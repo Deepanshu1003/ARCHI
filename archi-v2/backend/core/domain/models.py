@@ -243,6 +243,8 @@ class ProjectArchitecture:
     created_at: float = field(default_factory=time.time)
     agents: Dict[str, AgentRole] = field(default_factory=dict)
     master_blueprint: str = ""
+    published_spec: str = ""
+    published_at: Optional[float] = None
     domain_slices: Dict[str, ArchitectureSlice] = field(default_factory=dict)
     pending_approvals: Dict[str, List[PendingApproval]] = field(default_factory=dict)
 

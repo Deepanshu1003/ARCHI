@@ -177,6 +177,8 @@ def project_to_dict(project: ProjectArchitecture) -> Dict[str, Any]:
         "created_at": project.created_at,
         "root_agent_id": project.root_agent_id,
         "master_blueprint": project.master_blueprint,
+        "published_spec": project.published_spec,
+        "published_at": project.published_at,
         "agents": {aid: agent_to_dict(agent) for aid, agent in project.agents.items()},
         "domain_slices": {
             aid: slice_to_dict(item) for aid, item in project.domain_slices.items()
@@ -202,6 +204,8 @@ def project_from_dict(raw: Dict[str, Any]) -> ProjectArchitecture:
         root_agent_id=raw.get("root_agent_id", ""),
         agents=agents,
         master_blueprint=raw.get("master_blueprint", ""),
+        published_spec=raw.get("published_spec", ""),
+        published_at=raw.get("published_at"),
         domain_slices={
             aid: slice_from_dict(item) for aid, item in raw.get("domain_slices", {}).items()
         },

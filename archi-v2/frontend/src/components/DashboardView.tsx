@@ -6,7 +6,7 @@ import {
   Edit2, Check, Sparkles, CornerDownRight, FileText, Info,
   GitCompare, ShieldCheck, Eye, Code, AlertTriangle, Plus, Trash2, 
   Download, Copy, Users, BookOpen, Layers, Calendar, ListTodo, 
-  CheckCircle2, Clock, Grid, GitBranch, Cpu, GitPullRequest
+  CheckCircle2, Clock, Grid, GitBranch, Cpu, GitPullRequest, ClipboardList
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { cn } from '../utils';
@@ -17,6 +17,7 @@ import { SprintPlanningWorkspace } from './SprintPlanningWorkspace';
 import { CreateSprintFromArchitectureModal } from './CreateSprintFromArchitectureModal';
 import { AgentCodingToolsModal } from './AgentCodingToolsModal';
 import { CodeRepositoryWorkspace } from './CodeRepositoryWorkspace';
+import { BuildPlanModal } from './BuildPlanModal';
 import { createAgentDefaultDocs } from '../utils/defaultProject';
 import * as api from '../api';
 
@@ -47,6 +48,7 @@ export function DashboardView({ project, onBack, onUpdateProject, onDeleteProjec
   const [isTyping, setIsTyping] = useState(false);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [showOverviewModal, setShowOverviewModal] = useState(false);
+  const [showBuildPlanModal, setShowBuildPlanModal] = useState(false);
   const [showCreateSprintFromArchModal, setShowCreateSprintFromArchModal] = useState(false);
   const [showAgentCodingToolsModal, setShowAgentCodingToolsModal] = useState(false);
 
@@ -484,6 +486,7 @@ export function DashboardView({ project, onBack, onUpdateProject, onDeleteProjec
   };
 
   const renderTopNavBar = () => (
+    <>
     <div className="bg-neutral-900 text-white px-6 py-2.5 flex items-center justify-between shrink-0 border-b border-neutral-800 z-30">
       <div className="flex items-center gap-2">
         <button onClick={onBack} className="p-1 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white mr-1" title="Back">
@@ -533,7 +536,29 @@ export function DashboardView({ project, onBack, onUpdateProject, onDeleteProjec
           <GitBranch className="w-3.5 h-3.5" /> Code Repo & Merges
         </button>
       </div>
+
+      <button
+        onClick={() => setShowBuildPlanModal(true)}
+        className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 transition-colors"
+        title="Project-wide build plan and public domain spec"
+      >
+        <ClipboardList className="w-3.5 h-3.5" /> Build Plan & Spec
+      </button>
     </div>
+
+    {showBuildPlanModal && (
+      <BuildPlanModal
+        projectId={project.id}
+        projectName={project.name}
+        onClose={() => setShowBuildPlanModal(false)}
+        onOpenAgent={(agentId) => {
+          setShowBuildPlanModal(false);
+          setActiveAgentId(agentId);
+          setViewMode('workspace');
+        }}
+      />
+    )}
+    </>
   );
 
   // If view mode is 'all_agents', render the complete Multi-Agent Roster directory view
@@ -1186,6 +1211,16 @@ export function DashboardView({ project, onBack, onUpdateProject, onDeleteProjec
                       </div>
                     </div>
                   )}
+
+                  {/* What the two slots are for — the same explanation the backend enforces */}
+                  <div className="bg-white border border-neutral-200 rounded-2xl px-4 py-2.5 text-[11px] text-neutral-600 flex items-start gap-2">
+                    <Info className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
+                    <span>
+                      {activeDocCategory === 'principles'
+                        ? 'Principles — the rules, inherited context and boundaries this agent must respect. Read by the agent every time it drafts or chats.'
+                        : "Development Plan — the work this agent owns. Filled by Build Architecture, by a plan handed down from its supervisor, or by a merge after approval, and rolled up into the project Build Plan."}
+                    </span>
+                  </div>
 
                   {/* DOCUMENT CANVAS CONTAINER */}
                   <div className="bg-white border border-neutral-200 rounded-2xl p-8 shadow-xs min-h-[500px] flex flex-col">

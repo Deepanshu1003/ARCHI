@@ -1,6 +1,8 @@
-"""Drafting, delegation, submission, approval and diffing."""
+"""Drafting, delegation, submission, approval, diffing and publishing."""
 
 from __future__ import annotations
+
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -10,6 +12,7 @@ from ...agents.core.submission_capability import (
     GovernanceRejectedError,
     NotASubordinateError,
 )
+from ...core.domain.blueprint import build_blueprint
 from ...core.domain.state_machine import InvalidStateTransitionError
 from ..deps import ProjectServices, get_project_services
 from ..schemas.architecture import (
@@ -27,6 +30,7 @@ from ..schemas.architecture import (
     SubmitRequest,
     SubmitResponse,
 )
+from ..schemas.blueprint import BlueprintOut
 from ..schemas.projects import ApprovalOut, SliceOut
 
 router = APIRouter(prefix="/api/projects/{project_id}/architecture", tags=["architecture"])
@@ -34,6 +38,40 @@ router = APIRouter(prefix="/api/projects/{project_id}/architecture", tags=["arch
 
 def _bad_request(exc: Exception) -> HTTPException:
     return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.get("/blueprint", response_model=BlueprintOut)
+async def blueprint(
+    services: ProjectServices = Depends(get_project_services),
+) -> BlueprintOut:
+    """The whole tree's plans in one document, with what is still pending."""
+    return BlueprintOut.from_domain(
+        build_blueprint(services.project), services.project.published_spec
+    )
+
+
+@router.post("/blueprint/publish", response_model=BlueprintOut)
+async def publish_blueprint(
+    services: ProjectServices = Depends(get_project_services),
+) -> BlueprintOut:
+    """Freezes the assembled plan as the project's public domain spec.
+
+    Refused while any agent is still unapproved, so a half-built plan can never
+    be handed out as final.
+    """
+    assembled = build_blueprint(services.project)
+    if not assembled.is_final:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "The build plan is not final yet. Still pending: "
+                f"{', '.join(assembled.pending_agents) or 'no agents in this project'}."
+            ),
+        )
+    services.project.published_spec = assembled.markdown
+    services.project.published_at = time.time()
+    await services.save()
+    return BlueprintOut.from_domain(assembled, services.project.published_spec)
 
 
 @router.post("/draft", response_model=DraftResponse)

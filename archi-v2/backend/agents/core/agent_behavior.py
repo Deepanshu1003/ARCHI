@@ -21,7 +21,7 @@ from ...core.domain.models import (
 )
 from ...core.domain.state_machine import AgentStateMachine
 from ...core.ports.agent_port import AgentPort
-from ...core.ports.document_port import DocumentPort
+from ...core.ports.document_port import DocumentPort, DocumentRejectedError
 from ...core.ports.governance_port import GovernancePort
 
 logger = logging.getLogger("archi.agents.behavior")
@@ -136,12 +136,22 @@ class AgentBehavior:
         agent.decisions = generated.text
         AgentStateMachine.on_draft(agent)
 
+        # The plan slot is what the blueprint and the UI read, so a draft has to
+        # land there too. A governance rejection is reported, not raised: the
+        # draft still exists and the agent can fix it.
+        violations = list(verdict.violations)
+        try:
+            await self.documents.record(agent, DocumentType.PLAN, generated.text, "draft")
+        except DocumentRejectedError as exc:
+            logger.info("Draft for '%s' not written to its plan doc: %s", agent.id, exc)
+            violations.extend(exc.violations)
+
         return DraftOutcome(
             slice_data=slice_data,
             degraded=generated.degraded,
             reason=generated.reason,
             provider=generated.provider,
-            governance_violations=verdict.violations,
+            governance_violations=violations,
         )
 
     @staticmethod

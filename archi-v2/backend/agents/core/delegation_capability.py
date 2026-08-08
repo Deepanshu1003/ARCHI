@@ -9,10 +9,12 @@ from typing import Dict, List
 from ...core.domain.models import (
     AgentRole,
     ArchitectureSlice,
+    DocumentType,
     ProjectArchitecture,
 )
 from ...core.domain.state_machine import AgentStateMachine
 from ...core.ports.delegation_port import DelegationPort
+from ...core.ports.document_port import DocumentPort, DocumentRejectedError
 from ...core.ports.event_bus_port import EventBusPort
 
 logger = logging.getLogger("archi.agents.delegation")
@@ -35,9 +37,15 @@ class DelegationOutcome:
 class DelegationCapability:
     """Hands a supervisor's plan to the Planner and publishes the results down."""
 
-    def __init__(self, planner: DelegationPort, event_bus: EventBusPort) -> None:
+    def __init__(
+        self,
+        planner: DelegationPort,
+        event_bus: EventBusPort,
+        documents: DocumentPort | None = None,
+    ) -> None:
         self.planner = planner
         self.event_bus = event_bus
+        self.documents = documents
 
     async def delegate(
         self, project: ProjectArchitecture, supervisor: AgentRole
@@ -59,6 +67,7 @@ class DelegationCapability:
 
         await self.event_bus.publish_downward(project, supervisor.id, result.slices)
         AgentStateMachine.on_delegate(supervisor, reports)
+        await self._seed_report_plans(project, result.slices)
 
         if supervisor.id == project.root_agent_id:
             project.master_blueprint = parent_plan
@@ -69,3 +78,23 @@ class DelegationCapability:
             degraded=result.degraded,
             reason=result.reason,
         )
+
+    async def _seed_report_plans(
+        self, project: ProjectArchitecture, slices: Dict[str, ArchitectureSlice]
+    ) -> None:
+        """Puts each handed-down slice in the recipient's plan slot as version 1.
+
+        Without this the tailored sub-plan lives only in memory and the report's
+        Development Plan tab stays empty until it drafts.
+        """
+        if self.documents is None:
+            return
+        for agent_id, slice_data in slices.items():
+            if agent_id not in project.agents:
+                continue
+            try:
+                await self.documents.record(
+                    project.agent(agent_id), DocumentType.PLAN, slice_data.content, "delegation"
+                )
+            except DocumentRejectedError as exc:
+                logger.info("Delegated plan not written for '%s': %s", agent_id, exc)

@@ -37,6 +37,14 @@ error, which keeps retried requests idempotent. Anything else raises
 | `POST .../architecture/approve` | subordinate → `APPROVED`, its slice finalized and merged into the parent |
 | `POST .../architecture/request-revision` | subordinate → `DRAFTING`, pending approval cleared |
 
+Each of `draft`, `delegate`, `submit` and `approve` also writes its output into
+the relevant agent's `plan` document slot, which is what the project-wide build
+plan (`GET .../architecture/blueprint`) is assembled from.
+
+Publishing is a separate, aggregate step. The blueprint is final only once every
+report is `APPROVED` and the root holds a plan of its own; `blueprint/publish`
+returns `409` before that, so an unfinished plan cannot be published.
+
 `approve` and `request-revision` both require a submission actually sitting in
 the supervisor's queue; without one they are rejected with 400, so approving
 twice cannot silently re-merge.

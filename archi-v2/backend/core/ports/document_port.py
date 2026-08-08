@@ -8,6 +8,14 @@ from typing import List, Tuple
 from ..domain.models import AgentDocument, AgentRole, DocumentType, ProjectArchitecture
 
 
+class DocumentRejectedError(ValueError):
+    """Raised when a document write fails governance or upload rules."""
+
+    def __init__(self, violations: List[str]) -> None:
+        super().__init__("; ".join(violations))
+        self.violations = violations
+
+
 class DocumentPort(ABC):
     """Abstract port for agent document reads and writes.
 
@@ -26,6 +34,19 @@ class DocumentPort(ABC):
         """Extracts ``[DOC_UPDATE: ...]`` blocks from an agent reply.
 
         Returns the reply with those blocks stripped, plus the documents written.
+        """
+
+    @abstractmethod
+    async def record(
+        self,
+        agent: AgentRole,
+        doc_type: DocumentType,
+        content: str,
+        source: str,
+    ) -> AgentDocument:
+        """Writes lifecycle output (a draft, a handed-down plan, a merge) to a slot.
+
+        Raises ``DocumentRejectedError`` when governance refuses the content.
         """
 
     @abstractmethod

@@ -8,11 +8,13 @@ from typing import List
 
 from ...core.domain.models import (
     AgentRole,
+    DocumentType,
     MergeResult,
     PendingApproval,
     ProjectArchitecture,
 )
 from ...core.domain.state_machine import AgentStateMachine
+from ...core.ports.document_port import DocumentPort, DocumentRejectedError
 from ...core.ports.event_bus_port import EventBusPort
 from ...core.ports.governance_port import GovernancePort
 from ...core.ports.merge_port import MergePort
@@ -53,11 +55,25 @@ class SubmissionCapability:
     """Submits work up to a supervisor and applies the supervisor's decision."""
 
     def __init__(
-        self, event_bus: EventBusPort, merger: MergePort, governance: GovernancePort
+        self,
+        event_bus: EventBusPort,
+        merger: MergePort,
+        governance: GovernancePort,
+        documents: DocumentPort | None = None,
     ) -> None:
         self.event_bus = event_bus
         self.merger = merger
         self.governance = governance
+        self.documents = documents
+
+    async def _record_plan(self, agent: AgentRole, content: str, source: str) -> None:
+        """Mirrors lifecycle output into the agent's plan slot, best effort."""
+        if self.documents is None:
+            return
+        try:
+            await self.documents.record(agent, DocumentType.PLAN, content, source)
+        except DocumentRejectedError as exc:
+            logger.info("Plan doc not updated for '%s': %s", agent.id, exc)
 
     async def submit(
         self, project: ProjectArchitecture, agent: AgentRole, content: str | None = None
@@ -88,6 +104,7 @@ class SubmissionCapability:
         )
         AgentStateMachine.on_submit(agent)
         agent.decisions = slice_data.content
+        await self._record_plan(agent, slice_data.content, "submission")
         return SubmissionOutcome(approval=approval, governance_violations=[])
 
     async def approve(
@@ -122,6 +139,7 @@ class SubmissionCapability:
         if supervisor.id == project.root_agent_id:
             project.master_blueprint = merge.merged_content
         supervisor.decisions = merge.merged_content
+        await self._record_plan(supervisor, merge.merged_content, "merge")
 
         await self.event_bus.clear_pending(project, supervisor.id, subordinate.id)
         return ApprovalOutcome(

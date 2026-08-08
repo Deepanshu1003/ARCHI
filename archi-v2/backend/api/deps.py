@@ -78,10 +78,15 @@ def services_for(
             intelligence=intelligence, documents=documents, governance=governance
         ),
         delegation=DelegationCapability(
-            planner=PlannerAgent(intelligence=intelligence), event_bus=event_bus
+            planner=PlannerAgent(intelligence=intelligence),
+            event_bus=event_bus,
+            documents=documents,
         ),
         submission=SubmissionCapability(
-            event_bus=event_bus, merger=MergerAgent(), governance=governance
+            event_bus=event_bus,
+            merger=MergerAgent(),
+            governance=governance,
+            documents=documents,
         ),
     )
 

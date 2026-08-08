@@ -17,7 +17,7 @@ from ...core.domain.models import (
     DocumentType,
     ProjectArchitecture,
 )
-from ...core.ports.document_port import DocumentPort
+from ...core.ports.document_port import DocumentPort, DocumentRejectedError
 from ...core.ports.governance_port import GovernancePort
 
 logger = logging.getLogger("archi.documents")
@@ -36,12 +36,7 @@ INLINE_PATTERN = re.compile(
 )
 
 
-class DocumentRejectedError(ValueError):
-    """Raised when a document write fails governance or upload rules."""
-
-    def __init__(self, violations: List[str]) -> None:
-        super().__init__("; ".join(violations))
-        self.violations = violations
+__all__ = ["DocumentStore", "DocumentRejectedError"]
 
 
 class DocumentStore(DocumentPort):
@@ -69,6 +64,15 @@ class DocumentStore(DocumentPort):
         document = agent.document(doc_type)
         document.apply_update(content=content, author=agent.id, source=source)
         return document
+
+    async def record(
+        self,
+        agent: AgentRole,
+        doc_type: DocumentType,
+        content: str,
+        source: str,
+    ) -> AgentDocument:
+        return await self._write(agent, doc_type, content, source)
 
     async def apply_chat_update(
         self, project: ProjectArchitecture, agent: AgentRole, reply_text: str
