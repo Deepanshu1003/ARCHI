@@ -55,6 +55,9 @@ class PlannerAgent(DelegationPort):
         excerpt = plan.strip()
         if len(excerpt) > 600:
             excerpt = excerpt[:600].rstrip() + " …"
+        # Blockquoted so governance reads it as inherited context rather than
+        # as this report assigning work to the peers the parent plan names.
+        excerpt = "\n".join(f"> {line}" for line in excerpt.splitlines())
         return (
             f"# Sub-plan for {report.role_name} (template)\n\n"
             f"> Produced without an LLM. Configure a provider for a tailored split.\n\n"

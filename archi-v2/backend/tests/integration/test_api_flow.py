@@ -108,6 +108,91 @@ async def test_approval_without_submission_is_rejected(client, project_payload) 
     assert response.status_code == 400
 
 
+async def test_draft_moves_the_agent_to_drafting(client, project_payload) -> None:
+    await create_project(client, project_payload)
+    response = await client.post(
+        f"{BASE}/project-test/architecture/draft", json={"agentId": "agent-root"}
+    )
+    assert response.json()["agentStatus"] == "DRAFTING"
+
+
+async def test_delegated_slice_can_be_submitted_under_a_multi_report_root(
+    client, project_payload
+) -> None:
+    """The handed-down plan names peers as context; that must not block a submit."""
+    await create_project(client, project_payload)
+    await client.post(
+        f"{BASE}/project-test/architecture/draft", json={"agentId": "agent-root"}
+    )
+    await client.post(
+        f"{BASE}/project-test/architecture/delegate", json={"agentId": "agent-root"}
+    )
+
+    for agent_id in ("agent-api", "agent-ui"):
+        submit = await client.post(
+            f"{BASE}/project-test/architecture/submit", json={"agentId": agent_id}
+        )
+        assert submit.status_code == 200, submit.text
+        assert submit.json()["agentStatus"] == "AWAITING_REVIEW"
+
+
+async def test_request_revision_reopens_and_clears_the_queue(
+    client, project_payload
+) -> None:
+    await create_project(client, project_payload)
+    await client.post(
+        f"{BASE}/project-test/architecture/draft", json={"agentId": "agent-root"}
+    )
+    await client.post(
+        f"{BASE}/project-test/architecture/delegate", json={"agentId": "agent-root"}
+    )
+    await client.post(
+        f"{BASE}/project-test/architecture/submit",
+        json={"agentId": "agent-api", "content": PLAN_MD},
+    )
+
+    revision = await client.post(
+        f"{BASE}/project-test/architecture/request-revision",
+        json={"supervisorId": "agent-root", "subordinateId": "agent-api"},
+    )
+    assert revision.status_code == 200, revision.text
+    assert revision.json()["agentStatus"] == "DRAFTING"
+
+    fetched = (await client.get(f"{BASE}/project-test")).json()
+    assert fetched["pendingApprovals"].get("agent-root", []) == []
+
+    stale = await client.post(
+        f"{BASE}/project-test/architecture/approve",
+        json={"supervisorId": "agent-root", "subordinateId": "agent-api"},
+    )
+    assert stale.status_code == 400
+
+
+async def test_approving_twice_is_rejected(client, project_payload) -> None:
+    await create_project(client, project_payload)
+    await client.post(
+        f"{BASE}/project-test/architecture/draft", json={"agentId": "agent-root"}
+    )
+    await client.post(
+        f"{BASE}/project-test/architecture/delegate", json={"agentId": "agent-root"}
+    )
+    await client.post(
+        f"{BASE}/project-test/architecture/submit",
+        json={"agentId": "agent-api", "content": PLAN_MD},
+    )
+    first = await client.post(
+        f"{BASE}/project-test/architecture/approve",
+        json={"supervisorId": "agent-root", "subordinateId": "agent-api"},
+    )
+    assert first.status_code == 200
+
+    second = await client.post(
+        f"{BASE}/project-test/architecture/approve",
+        json={"supervisorId": "agent-root", "subordinateId": "agent-api"},
+    )
+    assert second.status_code == 400
+
+
 async def test_chat_writes_a_document_slot(client, project_payload) -> None:
     await create_project(client, project_payload)
     response = await client.post(

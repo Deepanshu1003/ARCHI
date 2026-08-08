@@ -19,6 +19,7 @@ from ...core.domain.models import (
     DocumentType,
     ProjectArchitecture,
 )
+from ...core.domain.state_machine import AgentStateMachine
 from ...core.ports.agent_port import AgentPort
 from ...core.ports.document_port import DocumentPort
 from ...core.ports.governance_port import GovernancePort
@@ -133,6 +134,7 @@ class AgentBehavior:
         )
         project.domain_slices[agent.id] = slice_data
         agent.decisions = generated.text
+        AgentStateMachine.on_draft(agent)
 
         return DraftOutcome(
             slice_data=slice_data,

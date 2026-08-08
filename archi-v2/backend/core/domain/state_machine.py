@@ -19,6 +19,7 @@ class AgentStateMachine:
         IDLE            -> DELEGATED         (supervisor hands work to its reports)
         DRAFTING        -> DELEGATED         (supervisor splits its draft downward)
         DRAFTING        -> AWAITING_REVIEW   (draft submitted upward)
+        DELEGATED       -> DRAFTING          (supervisor reworks its own plan)
         DELEGATED       -> AWAITING_REVIEW   (all reports submitted back)
         AWAITING_REVIEW -> DRAFTING          (supervisor requests a revision)
         AWAITING_REVIEW -> APPROVED          (supervisor approves)
@@ -33,6 +34,7 @@ class AgentStateMachine:
         (AgentStatus.IDLE, AgentStatus.DELEGATED),
         (AgentStatus.DRAFTING, AgentStatus.DELEGATED),
         (AgentStatus.DRAFTING, AgentStatus.AWAITING_REVIEW),
+        (AgentStatus.DELEGATED, AgentStatus.DRAFTING),
         (AgentStatus.DELEGATED, AgentStatus.AWAITING_REVIEW),
         (AgentStatus.AWAITING_REVIEW, AgentStatus.DRAFTING),
         (AgentStatus.AWAITING_REVIEW, AgentStatus.APPROVED),
@@ -54,6 +56,11 @@ class AgentStateMachine:
             )
         agent.status = target
         return agent.status
+
+    @classmethod
+    def on_draft(cls, agent: AgentRole) -> None:
+        """Agent starts (or restarts) work on its own plan."""
+        cls.transition(agent, AgentStatus.DRAFTING)
 
     @classmethod
     def on_delegate(cls, supervisor: AgentRole, direct_reports: List[AgentRole]) -> None:

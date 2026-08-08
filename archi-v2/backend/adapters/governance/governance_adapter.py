@@ -28,6 +28,28 @@ AUTHORITY_CLAIMS = (
     "no review required",
 )
 
+# Headings that open a block of inherited or quoted material. Names appearing
+# under one of these were written by somebody else, so they are not the
+# author's own assignments.
+QUOTED_SECTION_HEADINGS = re.compile(
+    r"^\s{0,3}#{1,6}\s.*\b("
+    r"context|parent plan|master blueprint|handed down|inherited|"
+    r"direct reports|roster|delegated by|background"
+    r")\b",
+    re.IGNORECASE,
+)
+HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
+
+# An assignment is a name paired with a directive, not a bare mention. The
+# name is spliced in as ``{name}``.
+ASSIGNMENT_CUES = (
+    r"\b(assign(?:ed|s|ing)?|delegat(?:e|es|ed|ing)|hand(?:ed|s|ing)? off|"
+    r"task(?:ed|s|ing)?)\b[^.\n]{{0,40}}\b{name}\b",
+    r"\b{name}\b\s*(?:\([^)]*\))?\s*(?:will|must|should|shall|is to|needs to|"
+    r"owns|is responsible for|takes over|handles)\b",
+    r"^\s*[-*]?\s*(?:owner|assignee|responsible)\s*:\s*[^\n]*\b{name}\b",
+)
+
 
 class RuleBasedGovernanceAdapter(GovernancePort):
     """Enforces bounded-context ownership and the two-document schema."""
@@ -54,21 +76,45 @@ class RuleBasedGovernanceAdapter(GovernancePort):
             )
         return violations
 
+    @staticmethod
+    def _authored_lines(content: str) -> List[str]:
+        """Drops quoted and inherited passages, keeping what the agent wrote.
+
+        A plan handed down by a supervisor quotes the parent plan and the peer
+        roster verbatim. Those names are context, not the author's own
+        assignments, so scanning them produces false positives.
+        """
+        kept: List[str] = []
+        in_quoted_section = False
+        for line in content.splitlines():
+            if HEADING.match(line):
+                in_quoted_section = bool(QUOTED_SECTION_HEADINGS.match(line))
+                continue
+            if in_quoted_section or line.lstrip().startswith(">"):
+                continue
+            kept.append(line)
+        return kept
+
     def _foreign_scope_violations(self, agent: AgentRole, content: str) -> List[str]:
         """Flags content that assigns work to agents outside the agent's subtree."""
         if self.project is None:
             return []
-        lowered = content.lower()
         allowed = {agent.id, *agent.children_ids}
         if agent.parent_id:
             allowed.add(agent.parent_id)
+        authored = "\n".join(self._authored_lines(content)).lower()
+        if not authored.strip():
+            return []
 
         violations: List[str] = []
         for other_id, other in self.project.agents.items():
-            if other_id in allowed:
+            if other_id in allowed or not other.person_name:
                 continue
-            pattern = rf"\b{re.escape(other.person_name.lower())}\b"
-            if other.person_name and re.search(pattern, lowered):
+            name = re.escape(other.person_name.lower())
+            if any(
+                re.search(cue.format(name=name), authored, re.MULTILINE)
+                for cue in ASSIGNMENT_CUES
+            ):
                 violations.append(
                     f"Assigns work to '{other.person_name}' ({other.role_name}), who is "
                     f"not a direct report of {agent.person_name}."

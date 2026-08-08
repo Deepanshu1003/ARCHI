@@ -82,13 +82,15 @@ it, or if the agent is the root and has nobody to submit to.
 Merges the child's section into the supervisor's plan. Returns
 `{ supervisorId, subordinateId, mergedContent, conflicts, summary, agentStatuses }`.
 `conflicts` is non-empty when a re-approval materially shrinks the section it
-replaces — the merge still applies.
+replaces — the merge still applies. 400 if the subordinate has no submission
+waiting in this supervisor's queue.
 
 ### `POST /request-revision`
 ```json
 { "supervisorId": "alice", "subordinateId": "bob" }
 ```
-Subordinate → `DRAFTING`, pending approval cleared.
+Subordinate → `DRAFTING`, pending approval cleared. 400 if there is no
+submission waiting in this supervisor's queue.
 
 ### `POST /diff`
 ```json

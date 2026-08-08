@@ -55,9 +55,15 @@ On a submission (`validate_boundary`):
 - Content shorter than 24 characters, or longer than 200,000.
 - Authority claims: `"bypass review"`, `"skip supervisor approval"`,
   `"no review required"`, `"i approve my own"`.
-- Foreign scope — naming an agent that is not the author, one of its direct
-  reports, or its parent. An agent assigning work sideways across the tree is
-  a boundary violation.
+- Foreign scope — *assigning work to* an agent that is not the author, one of
+  its direct reports, or its parent. Assigning sideways across the tree is a
+  boundary violation.
+
+Foreign scope looks for assignment phrasing ("delegate X to Linus", "Linus
+will…", "Owner: Linus"), not for the bare name. Blockquoted passages and
+sections headed as context — parent plan, inherited, roster, direct reports,
+background — are skipped entirely, because a handed-down plan quotes the peer
+roster verbatim and those names are context the author did not write.
 
 On a document write (`validate_document`), additionally:
 

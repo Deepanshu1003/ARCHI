@@ -10,6 +10,7 @@ stateDiagram-v2
     IDLE --> DELEGATED : supervisor hands work down
     DRAFTING --> DELEGATED : supervisor splits its draft
     DRAFTING --> AWAITING_REVIEW : submit upward
+    DELEGATED --> DRAFTING : supervisor reworks its plan
     DELEGATED --> AWAITING_REVIEW : reports submitted back
     AWAITING_REVIEW --> DRAFTING : revision requested
     AWAITING_REVIEW --> APPROVED : supervisor approves
@@ -35,6 +36,14 @@ error, which keeps retried requests idempotent. Anything else raises
 | `POST .../architecture/submit` | subordinate → `AWAITING_REVIEW` |
 | `POST .../architecture/approve` | subordinate → `APPROVED`, its slice finalized and merged into the parent |
 | `POST .../architecture/request-revision` | subordinate → `DRAFTING`, pending approval cleared |
+
+`approve` and `request-revision` both require a submission actually sitting in
+the supervisor's queue; without one they are rejected with 400, so approving
+twice cannot silently re-merge.
+
+`APPROVED` is not a dead end. The supervisor can send the work back with
+`request-revision`, and re-drafting reopens the agent — both land it in
+`DRAFTING`, from where it can submit again.
 
 Delegation is atomic across the supervisor and its reports:
 `AgentStateMachine.on_delegate()` moves all of them, so the tree cannot end up

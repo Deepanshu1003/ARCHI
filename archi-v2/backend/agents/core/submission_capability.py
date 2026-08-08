@@ -97,6 +97,11 @@ class SubmissionCapability:
         child_slice = project.domain_slices.get(subordinate.id)
         if child_slice is None:
             raise ValueError(f"{subordinate.person_name} has no submitted work to approve.")
+        if not await self._is_pending(project, supervisor, subordinate):
+            raise ValueError(
+                f"{subordinate.person_name} has no submission awaiting "
+                f"{supervisor.person_name}'s review."
+            )
 
         parent_slice = project.domain_slices.get(supervisor.id)
         parent_content = parent_slice.content if parent_slice else project.master_blueprint
@@ -123,9 +128,20 @@ class SubmissionCapability:
             merge=merge, subordinate_id=subordinate.id, supervisor_id=supervisor.id
         )
 
+    async def _is_pending(
+        self, project: ProjectArchitecture, supervisor: AgentRole, subordinate: AgentRole
+    ) -> bool:
+        queue = await self.event_bus.pending_for_supervisor(project, supervisor.id)
+        return any(item.author_id == subordinate.id for item in queue)
+
     async def request_revision(
         self, project: ProjectArchitecture, supervisor: AgentRole, subordinate: AgentRole
     ) -> None:
         """Sends a submission back down for rework."""
+        if not await self._is_pending(project, supervisor, subordinate):
+            raise ValueError(
+                f"{subordinate.person_name} has no submission awaiting "
+                f"{supervisor.person_name}'s review."
+            )
         AgentStateMachine.on_request_revision(subordinate)
         await self.event_bus.clear_pending(project, supervisor.id, subordinate.id)

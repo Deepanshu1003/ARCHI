@@ -61,9 +61,10 @@ reports). The Planner splits the parent plan into one tailored sub-plan per
 direct report and pushes it down; the supervisor becomes *Delegated Down* and
 each report becomes *Drafting Spec* with its slice already in place.
 
-If a report's sub-plan came from the deterministic template instead of the
-model — no API key, or the model skipped that report — the UI says so. Do not
-treat a degraded slice as model output.
+If a reply or sub-plan came from the deterministic template instead of the
+model — no API key, or the model skipped that report — an amber banner above
+the workspace names the provider and the reason, and stays until you dismiss
+it or switch agents. Do not treat a degraded slice as model output.
 
 ### 3c. Submit
 

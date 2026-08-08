@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { PendingApproval, AgentNode } from '../types';
-import { X, Check, GitCompare, ArrowRight, ShieldCheck, FileText } from 'lucide-react';
+import { X, Check, GitCompare, ArrowRight, ShieldCheck, FileText, Undo2 } from 'lucide-react';
 
 interface DiffModalProps {
   pendingApproval: PendingApproval;
   subordinateAgent?: AgentNode;
   supervisorAgent?: AgentNode;
   onApprove: () => void;
+  onRequestRevision: () => void;
   onClose: () => void;
   isApproving?: boolean;
+  isRequestingRevision?: boolean;
 }
 
 export function DiffModal({
@@ -16,9 +18,12 @@ export function DiffModal({
   subordinateAgent,
   supervisorAgent,
   onApprove,
+  onRequestRevision,
   onClose,
-  isApproving = false
+  isApproving = false,
+  isRequestingRevision = false
 }: DiffModalProps) {
+  const isBusy = isApproving || isRequestingRevision;
   const [viewMode, setViewMode] = useState<'unified' | 'side-by-side'>('side-by-side');
 
   const diffLines = (pendingApproval.diffText || '').split('\n');
@@ -145,8 +150,16 @@ export function DiffModal({
               Close & Review Later
             </button>
             <button
+              onClick={onRequestRevision}
+              disabled={isBusy}
+              className="border border-amber-300 text-amber-800 hover:bg-amber-50 disabled:opacity-50 px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2"
+            >
+              <Undo2 className="w-4 h-4" />
+              {isRequestingRevision ? 'Sending Back...' : 'Request Revision'}
+            </button>
+            <button
               onClick={onApprove}
-              disabled={isApproving}
+              disabled={isBusy}
               className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-5 py-2 rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center gap-2"
             >
               <Check className="w-4 h-4" />
