@@ -1,17 +1,19 @@
 """Gemini implementation of AgentPort.
 
-Failures are raised, not swallowed: the fallback chain decides what to do with
-them, and the reason reaches the client instead of being replaced by prose that
-looks like a real answer.
+Each configured model is tried in order (newest first) and the first one that
+answers wins. Failures are raised, not swallowed: the provider chain decides
+what to do with them, and the reason reaches the client instead of being
+replaced by prose that looks like a real answer.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import urllib.error
 import urllib.request
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from ...config.settings import Settings, get_settings
 from ...core.domain.models import AgentRole
@@ -22,8 +24,20 @@ logger = logging.getLogger("archi.llm.gemini")
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
+# A bad key fails identically on every model, so retrying the rest is wasted
+# latency. Anything else (model retired, not enabled for the key, quota,
+# transient 5xx) is worth retrying on the next model.
+FATAL_STATUS_CODES = (401, 403)
+# A rejected key comes back as a 400 rather than a 401.
+FATAL_DETAIL_MARKERS = ("API_KEY_INVALID", "API key not valid")
+
+
 class GeminiUnavailableError(RuntimeError):
     """Raised when Gemini cannot answer: no key, transport error or empty reply."""
+
+
+class GeminiFatalError(GeminiUnavailableError):
+    """A failure that will repeat on every model, so the loop stops early."""
 
 
 class GeminiAdapter(AgentPort):
@@ -38,17 +52,18 @@ class GeminiAdapter(AgentPort):
     def is_configured(self) -> bool:
         return self.settings.has_gemini_key
 
-    def _request(self, prompt: str, system_instruction: str) -> str:
-        if not self.is_configured:
-            raise GeminiUnavailableError("GEMINI_API_KEY is not configured.")
+    @property
+    def models(self) -> List[str]:
+        return self.settings.gemini_models
 
+    def _call_model(self, model: str, prompt: str, system_instruction: str) -> str:
         contents: List[Dict[str, object]] = []
         if system_instruction:
             contents.append({"role": "user", "parts": [{"text": system_instruction}]})
             contents.append({"role": "model", "parts": [{"text": "Understood."}]})
         contents.append({"role": "user", "parts": [{"text": prompt}]})
 
-        url = f"{API_ROOT}/{self.settings.gemini_model}:generateContent"
+        url = f"{API_ROOT}/{model}:generateContent"
         request = urllib.request.Request(
             url,
             data=json.dumps({"contents": contents}).encode("utf-8"),
@@ -65,20 +80,51 @@ class GeminiAdapter(AgentPort):
                 payload = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")[:400]
-            logger.warning("Gemini HTTP %s: %s", exc.code, detail)
-            raise GeminiUnavailableError(f"Gemini returned HTTP {exc.code}: {detail}") from exc
+            logger.warning("Gemini %s HTTP %s: %s", model, exc.code, detail)
+            message = f"{model}: HTTP {exc.code}: {detail}"
+            fatal = exc.code in FATAL_STATUS_CODES or any(
+                marker in detail for marker in FATAL_DETAIL_MARKERS
+            )
+            if fatal:
+                raise GeminiFatalError(message) from exc
+            raise GeminiUnavailableError(message) from exc
         except Exception as exc:  # transport, timeout, malformed JSON
-            logger.warning("Gemini call failed: %s", exc)
-            raise GeminiUnavailableError(f"Gemini call failed: {exc}") from exc
+            logger.warning("Gemini %s call failed: %s", model, exc)
+            raise GeminiUnavailableError(f"{model}: {exc}") from exc
 
         candidates = payload.get("candidates") or []
         if not candidates:
-            raise GeminiUnavailableError("Gemini returned no candidates.")
+            raise GeminiUnavailableError(f"{model}: returned no candidates.")
         parts = candidates[0].get("content", {}).get("parts") or []
         text = "".join(part.get("text", "") for part in parts).strip()
         if not text:
-            raise GeminiUnavailableError("Gemini returned an empty response.")
+            raise GeminiUnavailableError(f"{model}: returned an empty response.")
         return text
+
+    async def _request(self, prompt: str, system_instruction: str) -> Tuple[str, str]:
+        """Returns (text, model) from the first model that answers."""
+        if not self.is_configured:
+            raise GeminiUnavailableError("GEMINI_API_KEY is not configured.")
+        if not self.models:
+            raise GeminiUnavailableError("No Gemini models are configured.")
+
+        failures: List[str] = []
+        for model in self.models:
+            try:
+                # urllib blocks, so keep it off the event loop.
+                text = await asyncio.to_thread(
+                    self._call_model, model, prompt, system_instruction
+                )
+            except GeminiFatalError as exc:
+                raise GeminiUnavailableError(str(exc)) from exc
+            except GeminiUnavailableError as exc:
+                failures.append(str(exc))
+                continue
+            if failures:
+                logger.info("Gemini fell back to '%s' after %d failure(s).", model, len(failures))
+            return text, model
+
+        raise GeminiUnavailableError("; ".join(failures))
 
     @staticmethod
     def _persona(agent: AgentRole) -> str:
@@ -95,7 +141,8 @@ class GeminiAdapter(AgentPort):
             f"{turn.get('role', 'user')}: {turn.get('content', '')}" for turn in history[-12:]
         )
         prompt = f"{transcript}\n\nuser: {message}" if transcript else message
-        return LLMReply(text=self._request(prompt, self._persona(agent)), provider=self.name)
+        text, model = await self._request(prompt, self._persona(agent))
+        return LLMReply(text=text, provider=f"{self.name}:{model}")
 
     async def generate_architecture(self, agent: AgentRole, context: str) -> LLMReply:
         instruction = (
@@ -107,4 +154,5 @@ class GeminiAdapter(AgentPort):
             if context
             else "Define architecture principles, module boundaries, data models and interfaces."
         )
-        return LLMReply(text=self._request(prompt, instruction), provider=self.name)
+        text, model = await self._request(prompt, instruction)
+        return LLMReply(text=text, provider=f"{self.name}:{model}")

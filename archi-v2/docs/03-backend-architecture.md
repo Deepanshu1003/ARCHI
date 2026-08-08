@@ -99,7 +99,10 @@ conflict, rather than quietly discarding the supervisor's edits.
   `ARCHI_LLM_PROVIDERS` (default `gemini,offline`) and returning the first
   success, recording each failed attempt on the reply.
   `gemini_adapter.py` calls the REST API via `urllib.request` and raises
-  `GeminiUnavailableError` instead of returning canned text.
+  `GeminiUnavailableError` instead of returning canned text. It walks
+  `ARCHI_GEMINI_MODELS` in order — a retired, unavailable or rate-limited
+  model falls through to the next one, and only an auth failure (401/403)
+  stops the loop early — reporting the winner as `gemini:<model>`.
   `offline_adapter.py` is deterministic and always sets `degraded=True`.
 - **memory** — `repository.py` keeps an in-memory dict as the source of truth
   and mirrors it to `data/projects.json` behind an `asyncio.Lock`, writing to a

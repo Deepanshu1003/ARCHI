@@ -17,6 +17,14 @@ ENV_FILE = PROJECT_ROOT / ".env"
 # added later without callers changing.
 DEFAULT_UPLOAD_EXTENSIONS: Tuple[str, ...] = (".md", ".txt")
 
+# Gemini models tried in order, newest first. A model the key cannot reach
+# (retired, not enabled, rate-limited) is skipped and the next one is tried.
+DEFAULT_GEMINI_MODELS: Tuple[str, ...] = (
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
+)
+
 
 def _split_csv(raw: str) -> List[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
@@ -43,7 +51,7 @@ class Settings:
     """Resolved configuration. Build via ``get_settings()``."""
 
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_models: List[str] = field(default_factory=lambda: list(DEFAULT_GEMINI_MODELS))
     gemini_timeout_seconds: float = 20.0
     llm_provider_chain: List[str] = field(default_factory=lambda: ["gemini", "offline"])
     data_dir: Path = DEFAULT_DATA_DIR
@@ -57,6 +65,11 @@ class Settings:
         return self.gemini_api_key not in placeholder
 
     @property
+    def gemini_model(self) -> str:
+        """The model tried first."""
+        return self.gemini_models[0] if self.gemini_models else DEFAULT_GEMINI_MODELS[0]
+
+    @property
     def projects_file(self) -> Path:
         return self.data_dir / "projects.json"
 
@@ -68,9 +81,15 @@ def get_settings() -> Settings:
     data_dir = os.environ.get("ARCHI_DATA_DIR", "").strip()
     origins = os.environ.get("ARCHI_CORS_ORIGINS", "").strip()
     chain = os.environ.get("ARCHI_LLM_PROVIDERS", "").strip()
+    # ARCHI_GEMINI_MODELS is the ordered fallback list; the older singular
+    # ARCHI_GEMINI_MODEL still works and simply pins one model.
+    models = _split_csv(os.environ.get("ARCHI_GEMINI_MODELS", "").strip())
+    single = os.environ.get("ARCHI_GEMINI_MODEL", "").strip()
+    if not models and single:
+        models = [single]
     return Settings(
         gemini_api_key=os.environ.get("GEMINI_API_KEY", "").strip(),
-        gemini_model=os.environ.get("ARCHI_GEMINI_MODEL", "gemini-2.5-flash").strip(),
+        gemini_models=models or list(DEFAULT_GEMINI_MODELS),
         gemini_timeout_seconds=float(os.environ.get("ARCHI_GEMINI_TIMEOUT", "20")),
         llm_provider_chain=_split_csv(chain) or ["gemini", "offline"],
         data_dir=Path(data_dir) if data_dir else DEFAULT_DATA_DIR,

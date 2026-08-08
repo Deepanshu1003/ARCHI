@@ -13,7 +13,12 @@ when creating a project id that already exists.
 ### `GET /api/health`
 
 ```json
-{ "status": "ok", "llmProviders": ["gemini", "offline"], "geminiConfigured": false }
+{
+  "status": "ok",
+  "llmProviders": ["gemini", "offline"],
+  "geminiModels": ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-2.5-flash"],
+  "geminiConfigured": false
+}
 ```
 
 ## Projects

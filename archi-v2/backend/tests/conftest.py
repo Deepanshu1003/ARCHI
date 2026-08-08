@@ -39,7 +39,7 @@ def settings(tmp_path) -> Settings:
     base = get_settings()
     return Settings(
         gemini_api_key="",
-        gemini_model=base.gemini_model,
+        gemini_models=list(base.gemini_models),
         llm_provider_chain=["offline"],
         data_dir=tmp_path / "data",
         cors_origins=["http://localhost:5173"],

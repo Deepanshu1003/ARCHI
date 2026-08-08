@@ -37,6 +37,7 @@ def create_app() -> FastAPI:
         return {
             "status": "ok",
             "llmProviders": settings.llm_provider_chain,
+            "geminiModels": settings.gemini_models,
             "geminiConfigured": settings.has_gemini_key,
         }
 

@@ -22,7 +22,9 @@ Check it:
 
 ```bash
 curl http://localhost:8000/api/health
-# {"status":"ok","llmProviders":["gemini","offline"],"geminiConfigured":false}
+# {"status":"ok","llmProviders":["gemini","offline"],
+#  "geminiModels":["gemini-3.6-flash","gemini-3.5-flash","gemini-2.5-flash"],
+#  "geminiConfigured":false}
 ```
 
 Interactive API docs are at http://localhost:8000/docs.
@@ -49,7 +51,8 @@ exported environment variable overrides whatever the file says.
 | Variable | Default | Effect |
 |---|---|---|
 | `GEMINI_API_KEY` | unset | Enables the Gemini provider. Unset ⇒ offline fallback. |
-| `ARCHI_GEMINI_MODEL` | `gemini-2.5-flash` | Model name. |
+| `ARCHI_GEMINI_MODELS` | `gemini-3.6-flash,gemini-3.5-flash,gemini-2.5-flash` | Models tried in order; first one that answers wins. |
+| `ARCHI_GEMINI_MODEL` | unset | Legacy single-model pin; overrides the default list. |
 | `ARCHI_GEMINI_TIMEOUT` | `20` | Per-call timeout, seconds. |
 | `ARCHI_LLM_PROVIDERS` | `gemini,offline` | Fallback chain, tried in order. |
 | `ARCHI_DATA_DIR` | `backend/data` | Where `projects.json` is written. |
