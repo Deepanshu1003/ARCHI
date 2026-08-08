@@ -1,0 +1,79 @@
+{
+  "name": "IoT Telemetry Pipeline",
+  "description": "Four levels deep: architect, platform lead, ingestion lead, and two specialists.",
+  "rootAgentId": "cto",
+  "agents": {
+    "cto": {
+      "id": "cto",
+      "parentId": null,
+      "roleName": "Head Architect",
+      "personName": "Ada",
+      "responsibilities": "Own the device-to-dashboard telemetry architecture, set latency and retention targets, and delegate the platform and analytics tracks.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": ["platform", "analytics"],
+      "documents": []
+    },
+    "platform": {
+      "id": "platform",
+      "parentId": "cto",
+      "roleName": "Platform Lead",
+      "personName": "Grace",
+      "responsibilities": "Device registry, MQTT broker, provisioning and the ingestion track as a whole.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": ["ingest"],
+      "documents": []
+    },
+    "ingest": {
+      "id": "ingest",
+      "parentId": "platform",
+      "roleName": "Ingestion Lead",
+      "personName": "Linus",
+      "responsibilities": "Stream ingestion, backpressure, schema evolution and the time-series store.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": ["stream", "storage"],
+      "documents": []
+    },
+    "stream": {
+      "id": "stream",
+      "parentId": "ingest",
+      "roleName": "Streaming Engineer",
+      "personName": "Rafi",
+      "responsibilities": "Kafka topics, partitioning, consumer groups and exactly-once semantics.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": [],
+      "documents": []
+    },
+    "storage": {
+      "id": "storage",
+      "parentId": "ingest",
+      "roleName": "Storage Engineer",
+      "personName": "Nina",
+      "responsibilities": "Time-series schema, downsampling, compaction and retention tiers.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": [],
+      "documents": []
+    },
+    "analytics": {
+      "id": "analytics",
+      "parentId": "cto",
+      "roleName": "Analytics Lead",
+      "personName": "Sofia",
+      "responsibilities": "Alerting rules, aggregation queries and the operator dashboard.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": [],
+      "documents": []
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "name": "Fintech Payments Platform",
+  "description": "Card payments platform: ledger, payment rails and a merchant dashboard.",
+  "rootAgentId": "agent-root",
+  "agents": {
+    "agent-root": {
+      "id": "agent-root",
+      "parentId": null,
+      "roleName": "Head Architect",
+      "personName": "Alice",
+      "responsibilities": "Own the end-to-end payments architecture, define PCI and audit constraints, and split the platform between the ledger, the payment rails and the merchant surface.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": ["agent-ledger", "agent-rails", "agent-merchant"],
+      "documents": []
+    },
+    "agent-ledger": {
+      "id": "agent-ledger",
+      "parentId": "agent-root",
+      "roleName": "Ledger Lead",
+      "personName": "Bob",
+      "responsibilities": "Double-entry ledger, balances, reconciliation jobs and the immutable transaction log.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": ["agent-ledger-db"],
+      "documents": []
+    },
+    "agent-ledger-db": {
+      "id": "agent-ledger-db",
+      "parentId": "agent-ledger",
+      "roleName": "Data Engineer",
+      "personName": "Diana",
+      "responsibilities": "Postgres schema, partitioning, migrations and retention for ledger entries.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": [],
+      "documents": []
+    },
+    "agent-rails": {
+      "id": "agent-rails",
+      "parentId": "agent-root",
+      "roleName": "Payment Rails Lead",
+      "personName": "Carol",
+      "responsibilities": "Card network and bank integrations, idempotency, retries, webhooks and settlement files.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": [],
+      "documents": []
+    },
+    "agent-merchant": {
+      "id": "agent-merchant",
+      "parentId": "agent-root",
+      "roleName": "Merchant Experience Lead",
+      "personName": "Evan",
+      "responsibilities": "Merchant dashboard, payout reporting, disputes UI and the public REST/SDK surface.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": [],
+      "documents": []
+    }
+  }
+}

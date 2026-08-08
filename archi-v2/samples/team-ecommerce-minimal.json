@@ -1,0 +1,43 @@
+{
+  "name": "E-Commerce Storefront",
+  "description": "Smallest useful tree: one architect with two direct reports.",
+  "rootAgentId": "arch",
+  "agents": {
+    "arch": {
+      "id": "arch",
+      "parentId": null,
+      "roleName": "Head Architect",
+      "personName": "Maya",
+      "responsibilities": "Define the storefront architecture, checkout flow and inventory boundaries, then split the work between backend and frontend.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": ["be", "fe"],
+      "documents": []
+    },
+    "be": {
+      "id": "be",
+      "parentId": "arch",
+      "roleName": "Backend Lead",
+      "personName": "Omar",
+      "responsibilities": "Catalog, cart, checkout and order services, plus the payment provider integration.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": [],
+      "documents": []
+    },
+    "fe": {
+      "id": "fe",
+      "parentId": "arch",
+      "roleName": "Frontend Lead",
+      "personName": "Priya",
+      "responsibilities": "Storefront UI, product browsing, cart state and the checkout screens.",
+      "status": "idle",
+      "decisions": "",
+      "chatHistory": [],
+      "childrenIds": [],
+      "documents": []
+    }
+  }
+}
