@@ -16,8 +16,16 @@ when creating a project id that already exists.
 {
   "status": "ok",
   "llmProviders": ["gemini", "offline"],
-  "geminiModels": ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-2.5-flash"],
-  "geminiConfigured": false
+    "geminiModels": [
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash-lite"
+  ],
+  "geminiConfigured": false,
+  "geminiThinkingLevel": "low",
+  "geminiTimeoutSeconds": 60.0
 }
 ```
 

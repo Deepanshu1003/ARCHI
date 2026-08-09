@@ -23,8 +23,9 @@ Check it:
 ```bash
 curl http://localhost:8000/api/health
 # {"status":"ok","llmProviders":["gemini","offline"],
-#  "geminiModels":["gemini-3.6-flash","gemini-3.5-flash","gemini-2.5-flash"],
-#  "geminiConfigured":false}
+#  "geminiModels":["gemini-3.6-flash","gemini-3.5-flash","gemini-3.5-flash-lite",
+#                  "gemini-3.1-flash-lite","gemini-2.5-flash-lite"],
+#  "geminiConfigured":false,"geminiThinkingLevel":"low","geminiTimeoutSeconds":60.0}
 ```
 
 Interactive API docs are at http://localhost:8000/docs.
@@ -51,9 +52,11 @@ exported environment variable overrides whatever the file says.
 | Variable | Default | Effect |
 |---|---|---|
 | `GEMINI_API_KEY` | unset | Enables the Gemini provider. Unset ⇒ offline fallback. |
-| `ARCHI_GEMINI_MODELS` | `gemini-3.6-flash,gemini-3.5-flash,gemini-2.5-flash` | Models tried in order; first one that answers wins. |
+| `ARCHI_GEMINI_MODELS` | `gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-2.5-flash-lite` | Models tried in order, best free-tier model first; the first that answers wins. |
 | `ARCHI_GEMINI_MODEL` | unset | Legacy single-model pin; overrides the default list. |
-| `ARCHI_GEMINI_TIMEOUT` | `20` | Per-call timeout, seconds. |
+| `ARCHI_GEMINI_TIMEOUT` | `60` | Per-call timeout, seconds. Gemini 3 reasons before answering. |
+| `ARCHI_GEMINI_THINKING_LEVEL` | `low` | `minimal`/`low`/`medium`/`high` reasoning depth for Gemini 3 models. Lower is faster. |
+| `ARCHI_GEMINI_DISCOVER_MODELS` | `1` | Ask the API which models the key can call and skip the rest. `0` tries all. |
 | `ARCHI_LLM_PROVIDERS` | `gemini,offline` | Fallback chain, tried in order. |
 | `ARCHI_DATA_DIR` | `backend/data` | Where `projects.json` is written. |
 | `ARCHI_CORS_ORIGINS` | localhost:5173 | Allowed browser origins. |

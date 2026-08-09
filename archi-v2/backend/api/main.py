@@ -39,6 +39,8 @@ def create_app() -> FastAPI:
             "llmProviders": settings.llm_provider_chain,
             "geminiModels": settings.gemini_models,
             "geminiConfigured": settings.has_gemini_key,
+            "geminiThinkingLevel": settings.gemini_thinking_level,
+            "geminiTimeoutSeconds": settings.gemini_timeout_seconds,
         }
 
     return app

@@ -13,7 +13,7 @@ import json
 import logging
 import urllib.error
 import urllib.request
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 from ...config.settings import Settings, get_settings
 from ...core.domain.models import AgentRole
@@ -23,6 +23,11 @@ logger = logging.getLogger("archi.llm.gemini")
 
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 
+# thinkingLevel only exists on Gemini 3; sending it to a 2.x model is a 400.
+THINKING_MODEL_PREFIX = "gemini-3"
+VALID_THINKING_LEVELS = ("minimal", "low", "medium", "high")
+ 
+ 
 
 # A bad key fails identically on every model, so retrying the rest is wasted
 # latency. Anything else (model retired, not enabled for the key, quota,
@@ -31,7 +36,13 @@ FATAL_STATUS_CODES = (401, 403)
 # A rejected key comes back as a 400 rather than a 401.
 FATAL_DETAIL_MARKERS = ("API_KEY_INVALID", "API key not valid")
 
-
+def _rejects_thinking_level(detail: str) -> bool:
+    """True when the failure is the model refusing the thinking parameter."""
+    return "HTTP 400" in detail and (
+        "thinkingLevel" in detail or "thinking_level" in detail or "thinkingConfig" in detail
+    )
+ 
+ 
 class GeminiUnavailableError(RuntimeError):
     """Raised when Gemini cannot answer: no key, transport error or empty reply."""
 
@@ -47,6 +58,7 @@ class GeminiAdapter(AgentPort):
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
+        self._available: Set[str] | None = None
 
     @property
     def is_configured(self) -> bool:
@@ -56,6 +68,55 @@ class GeminiAdapter(AgentPort):
     def models(self) -> List[str]:
         return self.settings.gemini_models
 
+    def _list_available_models(self) -> Set[str]:
+        """Model ids this key can actually call ``generateContent`` on.
+ 
+        Asking the API beats trusting a hardcoded list: models get retired for
+        new keys (as ``gemini-2.5-flash`` was) and the list differs per key.
+        """
+        request = urllib.request.Request(
+            f"{API_ROOT}?pageSize=200",
+            headers={"x-goog-api-key": self.settings.gemini_api_key},
+        )
+        with urllib.request.urlopen(
+            request, timeout=self.settings.gemini_timeout_seconds
+        ) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        return {
+            str(entry.get("name", "")).removeprefix("models/")
+            for entry in payload.get("models", [])
+            if "generateContent" in (entry.get("supportedGenerationMethods") or [])
+        }
+ 
+
+    async def _reachable_models(self) -> List[str]:
+        """Configured models, minus any the key cannot serve.
+ 
+        Discovery is best effort: if the listing call fails we try everything,
+        which is the pre-existing behaviour.
+        """
+        if not self.settings.gemini_discover_models:
+            return list(self.models)
+        if self._available is None:
+            try:
+                self._available = await asyncio.to_thread(self._list_available_models)
+            except Exception as exc:
+                logger.warning("Could not list Gemini models (%s); trying all configured.", exc)
+                self._available = set()
+        if not self._available:
+            return list(self.models)
+        reachable = [model for model in self.models if model in self._available]
+        skipped = [model for model in self.models if model not in self._available]
+        if skipped:
+            logger.info("Skipping Gemini models this key cannot call: %s", ", ".join(skipped))
+        return reachable or list(self.models)
+ 
+    def _generation_config(self, model: str) -> Dict[str, object]:
+        level = self.settings.gemini_thinking_level
+        if not model.startswith(THINKING_MODEL_PREFIX) or level not in VALID_THINKING_LEVELS:
+            return {}
+        return {"thinkingConfig": {"thinkingLevel": level}}
+
     def _call_model(self, model: str, prompt: str, system_instruction: str) -> str:
         contents: List[Dict[str, object]] = []
         if system_instruction:
@@ -63,10 +124,26 @@ class GeminiAdapter(AgentPort):
             contents.append({"role": "model", "parts": [{"text": "Understood."}]})
         contents.append({"role": "user", "parts": [{"text": prompt}]})
 
+        body: Dict[str, object] = {"contents": contents}
+        generation_config = self._generation_config(model)
+        if generation_config:
+            body["generationConfig"] = generation_config
+
+        try:
+            return self._post(model, body)
+        except GeminiUnavailableError as exc:
+            # A model that rejects thinkingLevel is still usable without it;
+            # every other failure falls through to the next model untouched.
+            if not generation_config or not _rejects_thinking_level(str(exc)):
+                raise
+            logger.info("Retrying Gemini %s without a thinking level.", model)
+            return self._post(model, {"contents": contents})
+ 
+    def _post(self, model: str, body: Dict[str, object]) -> str:
         url = f"{API_ROOT}/{model}:generateContent"
         request = urllib.request.Request(
             url,
-            data=json.dumps({"contents": contents}).encode("utf-8"),
+            data=json.dumps(body).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
                 "x-goog-api-key": self.settings.gemini_api_key,
@@ -109,7 +186,7 @@ class GeminiAdapter(AgentPort):
             raise GeminiUnavailableError("No Gemini models are configured.")
 
         failures: List[str] = []
-        for model in self.models:
+        for model in await self._reachable_models():
             try:
                 # urllib blocks, so keep it off the event loop.
                 text = await asyncio.to_thread(

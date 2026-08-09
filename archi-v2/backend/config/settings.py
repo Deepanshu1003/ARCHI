@@ -17,15 +17,23 @@ ENV_FILE = PROJECT_ROOT / ".env"
 # added later without callers changing.
 DEFAULT_UPLOAD_EXTENSIONS: Tuple[str, ...] = (".md", ".txt")
 
-# Gemini models tried in order, newest first. A model the key cannot reach
-# (retired, not enabled, rate-limited) is skipped and the next one is tried.
+# Gemini models tried in order: best free-tier model first, then progressively
+# cheaper/faster ones that are still on the free tier, so a slow or unavailable
+# model degrades to a lighter one instead of dropping straight to offline.
+# ``gemini-2.5-flash`` is deliberately absent: it is retired for new API keys.
 DEFAULT_GEMINI_MODELS: Tuple[str, ...] = (
     "gemini-3.6-flash",
     "gemini-3.5-flash",
-    "gemini-2.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash-lite",
 )
-
-
+ 
+# Gemini 3 thinks before answering, which is what made 20s timeouts look like
+# an outage. 'low' keeps blueprints coherent without the long reasoning pause.
+DEFAULT_THINKING_LEVEL = "low"
+ 
+ 
 def _split_csv(raw: str) -> List[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
@@ -52,7 +60,9 @@ class Settings:
 
     gemini_api_key: str = ""
     gemini_models: List[str] = field(default_factory=lambda: list(DEFAULT_GEMINI_MODELS))
-    gemini_timeout_seconds: float = 20.0
+    gemini_timeout_seconds: float = 90.0
+    gemini_thinking_level: str = DEFAULT_THINKING_LEVEL
+    gemini_discover_models: bool = True
     llm_provider_chain: List[str] = field(default_factory=lambda: ["gemini", "offline"])
     data_dir: Path = DEFAULT_DATA_DIR
     cors_origins: List[str] = field(default_factory=lambda: ["http://localhost:5173"])
@@ -90,7 +100,14 @@ def get_settings() -> Settings:
     return Settings(
         gemini_api_key=os.environ.get("GEMINI_API_KEY", "").strip(),
         gemini_models=models or list(DEFAULT_GEMINI_MODELS),
-        gemini_timeout_seconds=float(os.environ.get("ARCHI_GEMINI_TIMEOUT", "20")),
+        gemini_timeout_seconds=float(os.environ.get("ARCHI_GEMINI_TIMEOUT", "90")),
+        gemini_thinking_level=os.environ.get(
+            "ARCHI_GEMINI_THINKING_LEVEL", DEFAULT_THINKING_LEVEL
+        ).strip(),
+        gemini_discover_models=os.environ.get(
+            "ARCHI_GEMINI_DISCOVER_MODELS", "1"
+        ).strip()
+        not in {"0", "false", "False", "no"},
         llm_provider_chain=_split_csv(chain) or ["gemini", "offline"],
         data_dir=Path(data_dir) if data_dir else DEFAULT_DATA_DIR,
         cors_origins=_split_csv(origins) or ["http://localhost:5173", "http://127.0.0.1:5173"],
