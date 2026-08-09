@@ -1,82 +1,131 @@
-# 01 — Running it
+# 01 — Running ARCHI
 
-Requirements: Python 3.10+ and Node 18+. No API key is required — without one
-the offline provider answers and its output is marked degraded in the UI.
+## Requirements
 
-## 1. Backend — http://localhost:8000
+- Python 3.10+
+- Node.js 18+
+- Gemini API key: optional
+
+ARCHI can run without an API key. In that mode the deterministic offline provider is used and its responses are marked as degraded.
+
+## 1. Start the backend
 
 From the repository root:
 
 ```bash
 cd archi-v2
+
 python3 -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scripts\activate
+source .venv/bin/activate
+
 pip install -r backend/requirements.txt
+
 uvicorn backend.api.main:app --reload --app-dir .
 ```
 
-`--app-dir .` matters: the app is imported as the `backend` package, so
-uvicorn must start from `archi-v2/`, not from `archi-v2/backend/`.
+`--app-dir .` is important because the application is imported as the `backend` package from the `archi-v2` directory.
 
-Check it:
+Check the service:
 
 ```bash
 curl http://localhost:8000/api/health
-# {"status":"ok","llmProviders":["gemini","offline"],
-#  "geminiModels":["gemini-3.6-flash","gemini-3.5-flash","gemini-3.5-flash-lite",
-#                  "gemini-3.1-flash-lite","gemini-2.5-flash-lite"],
-#  "geminiConfigured":false,"geminiThinkingLevel":"low","geminiTimeoutSeconds":60.0}
 ```
 
-Interactive API docs are at http://localhost:8000/docs.
+Interactive API documentation:
 
-## 2. Frontend — http://localhost:5173
+```text
+http://localhost:8000/docs
+```
+
+## 2. Start the frontend
 
 In a second terminal:
 
 ```bash
 cd archi-v2/frontend
+
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173. The UI reads `VITE_ARCHI_API_URL` and falls back
-to `http://localhost:8000`.
+Open:
+
+```text
+http://localhost:5173
+```
+
+The frontend uses `VITE_ARCHI_API_URL`. If it is not set, it defaults to `http://localhost:8000`.
 
 ## 3. Configuration
 
-Copy `archi-v2/.env.example` to `archi-v2/.env` and set what you need;
-everything is optional. The backend loads that file at startup, and a real
-exported environment variable overrides whatever the file says.
-
-| Variable | Default | Effect |
-|---|---|---|
-| `GEMINI_API_KEY` | unset | Enables the Gemini provider. Unset ⇒ offline fallback. |
-| `ARCHI_GEMINI_MODELS` | `gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-2.5-flash-lite` | Models tried in order, best free-tier model first; the first that answers wins. |
-| `ARCHI_GEMINI_MODEL` | unset | Legacy single-model pin; overrides the default list. |
-| `ARCHI_GEMINI_TIMEOUT` | `60` | Per-call timeout, seconds. Gemini 3 reasons before answering. |
-| `ARCHI_GEMINI_THINKING_LEVEL` | `low` | `minimal`/`low`/`medium`/`high` reasoning depth for Gemini 3 models. Lower is faster. |
-| `ARCHI_GEMINI_DISCOVER_MODELS` | `1` | Ask the API which models the key can call and skip the rest. `0` tries all. |
-| `ARCHI_LLM_PROVIDERS` | `gemini,offline` | Fallback chain, tried in order. |
-| `ARCHI_DATA_DIR` | `backend/data` | Where `projects.json` is written. |
-| `ARCHI_CORS_ORIGINS` | localhost:5173 | Allowed browser origins. |
-| `ARCHI_MAX_UPLOAD_BYTES` | `524288` | Upload size ceiling. |
-| `VITE_ARCHI_API_URL` | `http://localhost:8000` | API base the UI calls. |
-
-The backend reads the environment once per process (`get_settings()` is
-cached), so changing a variable means restarting uvicorn.
-
-## 4. Tests and checks
+Create a local environment file:
 
 ```bash
-cd archi-v2 && pytest              # unit (no I/O) + integration (HTTP)
-cd archi-v2/frontend
-npm run lint                       # tsc --noEmit
-npm run build                      # vite build
+cp archi-v2/.env.example archi-v2/.env
 ```
 
-## 5. Where state lives
+### Backend variables
 
-`archi-v2/backend/data/projects.json`, written through on every mutation via a
-temp file plus atomic replace. Deleting it resets the app. The directory is
-gitignored.
+| Variable | Effective code default | Description |
+|---|---:|---|
+| `GEMINI_API_KEY` | unset | Enables Gemini |
+| `ARCHI_GEMINI_MODELS` | configured default list | Ordered model fallback list |
+| `ARCHI_GEMINI_MODEL` | unset | Legacy single-model override |
+| `ARCHI_GEMINI_TIMEOUT` | `90` seconds | Per-model request timeout |
+| `ARCHI_GEMINI_THINKING_LEVEL` | `low` | Gemini 3 reasoning level |
+| `ARCHI_GEMINI_DISCOVER_MODELS` | `true` | Filters configured models using the API's model list |
+| `ARCHI_LLM_PROVIDERS` | `gemini,offline` | Provider fallback order |
+| `ARCHI_DATA_DIR` | `backend/data` | Directory for `projects.json` |
+| `ARCHI_CORS_ORIGINS` | localhost + 127.0.0.1 Vite origins | Allowed browser origins |
+| `ARCHI_MAX_UPLOAD_BYTES` | `524288` | Maximum upload size |
+
+> The checked-in `.env.example` sets `ARCHI_GEMINI_TIMEOUT=60`. If you do not create a `.env`, the Python settings default is 90 seconds. This distinction is intentional in the documentation so the runtime default is not confused with the example configuration.
+
+### Frontend variable
+
+| Variable | Default | Description |
+|---|---|---|
+| `VITE_ARCHI_API_URL` | `http://localhost:8000` | Backend API base URL |
+
+The backend reads configuration once per process. Restart uvicorn after changing environment variables.
+
+## Gemini fallback behavior
+
+The configured Gemini models are tried in order.
+
+Model discovery can first remove models that the API key cannot call. A failed model can fall through to the next configured model. Authentication failures stop the Gemini model loop because retrying another model will not fix an invalid key.
+
+For Gemini 3 models, the configured thinking level is sent when supported. If a model rejects the thinking parameter, ARCHI retries that model without the parameter.
+
+If Gemini still cannot answer, the provider chain can fall back to the offline adapter.
+
+## 4. Tests
+
+Backend:
+
+```bash
+cd archi-v2
+pytest
+```
+
+Frontend:
+
+```bash
+cd archi-v2/frontend
+npm run lint
+npm run build
+```
+
+## 5. Persistent state
+
+The repository uses:
+
+```text
+archi-v2/backend/data/projects.json
+```
+
+as a write-through persistence mirror.
+
+The in-memory repository is authoritative during runtime. Mutations are serialized under an async lock and written through a temporary file followed by an atomic replace.
+
+The data directory is gitignored. Removing `projects.json` resets persisted project state.

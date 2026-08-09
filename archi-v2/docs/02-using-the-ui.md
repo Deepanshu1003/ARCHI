@@ -1,152 +1,198 @@
 # 02 — Using the UI
 
-Both processes must be running ([01 — Running it](01-running.md)). Open
-http://localhost:5173.
+Start both the backend and frontend as described in [01 — Running](01-running.md).
 
-The app has three screens: **Home** (project list) → **Setup** (build the org
-chart) → **Dashboard** (do the work). Everything you do is written straight to
-the backend; there is no local draft copy, so if a call fails you get a red
-banner at the top of the window rather than content that only exists in your
-browser.
+Open:
 
-## Step 1 — Create a project (Home)
+```text
+http://localhost:5173
+```
 
-Click **Start a New Project**, give it a name, and press **Create**. You get a
-project with a single root agent — the Head Architect.
+ARCHI has three main project screens:
 
-If you already have an org chart, paste it into the JSON box in the same
-dialog. It needs `rootAgentId` and an `agents` map; export the shape from an
-existing project first (Setup → **Export JSON**) if you want a template.
+```text
+Home → Setup → Dashboard
+```
 
-The Home screen also has, per project: **open**, **overview** (agent counts and
-status roll-up), **edit team**, and **delete**. **Clear All Projects** wipes
-everything on the server.
+The backend is the source of truth. State-changing actions are sent to the server rather than stored only in the browser.
 
-## Step 2 — Build the hierarchy (Setup)
+## Step 1 — Create a project
 
-The Setup screen is the org chart editor. For each agent card you set:
+From **Home**, select **Start a New Project**.
 
-- **Person Name (Persona)** — who the agent is, e.g. `Bob`.
-- **Role / Title** — e.g. `Frontend Lead`.
-- **Responsibilities** — the agent's scope. This matters: it is fed to the
-  model as context and it is what governance checks a submission against, so
-  vague responsibilities produce vague plans.
+You can:
 
-**+ Direct Report** adds a child under that agent; the trash icon removes an
-agent and its subtree. The root cannot be deleted. Zoom, density and
-fit-to-screen controls are for large trees only; **Upload JSON File**,
-**Paste/Edit JSON** and **Export JSON** move the structure in and out.
+- create a blank project;
+- provide an initial project name and description;
+- import an organization structure as JSON.
 
-An agent's position in the tree — not its title — decides what it can do. An
-agent with children can delegate; an agent with a parent can submit upward.
+A new blank project starts with one root agent.
 
-Click **Start Project** when the tree is right.
+If importing JSON, the structure needs a `rootAgentId` and an `agents` collection. **Export JSON** from an existing project is the easiest way to obtain a valid template.
 
-## Step 3 — Draft, delegate, review (Dashboard)
+## Step 2 — Build the hierarchy
 
-Pick an agent in the left-hand tree. The badge on each agent is its status:
-**Idle → Drafting Spec → Delegated Down → Awaiting Review → Approved/Merged**.
+The **Setup** screen is the organization-chart editor.
 
-### 3a. Draft
+Each agent has:
 
-With the root selected, click **Build Architecture**. The agent writes its
-plan into its `plan` document and moves to *Drafting Spec*. You can edit the
-result directly in the **Raw Editor** tab, or talk to the agent in the
-terminal panel to refine it.
+- **Person Name / Persona**
+- **Role / Title**
+- **Responsibilities**
 
-### 3b. Delegate
+Responsibilities are important because they become model context and are also used by governance checks.
 
-Click **Finalize & Delegate** (only shown for agents that have direct
-reports). The Planner splits the parent plan into one tailored sub-plan per
-direct report and pushes it down; the supervisor becomes *Delegated Down* and
-each report becomes *Drafting Spec* with its slice already in place.
+You can:
 
-If a reply or sub-plan came from the deterministic template instead of the
-model — no API key, or the model skipped that report — an amber banner above
-the workspace names the provider and the reason, and stays until you dismiss
-it or switch agents. Do not treat a degraded slice as model output.
+- add direct reports;
+- remove an agent and its subtree;
+- import JSON;
+- edit JSON;
+- export JSON;
+- adjust tree density and zoom.
 
-### 3c. Submit
+The root cannot be deleted.
 
-Select a report, refine its slice (chat or Raw Editor), then click **Publish
-Domain Spec**. Its status becomes *Awaiting Review* and a review request
-appears on its supervisor.
+### Capability rules
 
-Governance runs at this point. If the submission is empty, claims authority
-the agent does not have, decides something outside its scope, or is
-structureless, the submission is rejected with the specific reasons — server
-side, so it cannot be skipped by calling the API directly.
+Capabilities come from tree position, not role title.
 
-### 3d. Review and approve
+```text
+children exist → may delegate
+parent exists   → may submit upward
+```
 
-Select the supervisor. A purple **Diff: <name>** button appears for each
-pending submission. Click it to see the unified diff of the supervisor's plan
-before and after the merge, then **Approve** or **Request Revision**.
+## Step 3 — Draft and delegate
 
-- **Approve** merges the child's section into the supervisor's plan and moves
-  the child to *Approved/Merged*. Re-approving later replaces that same
-  section instead of appending a second copy. If the new version is materially
-  shorter than the section it replaces, the merge still applies but is flagged
-  as a conflict for you to look at.
-- **Request Revision** sends it back down to *Drafting Spec*.
+### Draft
 
-Repeat up the tree; the root's plan becomes the assembled blueprint.
+Select an agent and use **Build Architecture**.
 
-## Step 4 — Build Plan & Spec
+The agent creates or updates its `plan` document and enters the drafting state.
 
-**Build Plan & Spec** in the top bar opens the project-wide view, available
-from every workspace. It has two tabs:
+You can refine the result through:
 
-- **Build Plan by Team** — one section per agent in reporting order, indented
-  by depth, showing that agent's responsibilities, status, principles and
-  current plan. This is where the work is split by responsibility: each agent's
-  section is exactly the slice it owns.
-- **Public Domain Spec** — the frozen, published copy of that plan. Empty until
-  you publish.
+- the chat terminal;
+- the Raw Editor.
 
-A banner at the top says whether the plan is **draft** or **final** and names
-every agent still holding it up. A report's section is final once its
-supervisor approves it; the root's is final once every descendant is approved
-and the root holds the merged plan.
+### Delegate
 
-**Publish Domain Spec** is disabled while the plan is a draft, and the server
-refuses the call too (HTTP 409) — so an incomplete plan can never be handed out
-as final. Publishing freezes the assembled markdown as the public spec;
-publishing again after further changes overwrites it. **Copy Markdown** and
-**Download** export whichever tab you are on.
+For a supervisor with direct reports, select **Finalize & Delegate**.
+
+The Planner:
+
+1. reads the supervisor's plan;
+2. reads the direct-report roster;
+3. generates one slice per report;
+4. writes the slices to the corresponding child plans;
+5. updates the relevant lifecycle statuses.
+
+If the model does not produce a valid slice for a report, ARCHI creates deterministic fallback content and marks the result as degraded.
+
+## Step 4 — Submit
+
+Select a subordinate agent and refine its assigned plan.
+
+Use **Publish Domain Spec** to submit it to the supervisor.
+
+Before creating the approval request, server-side governance checks the submission.
+
+Examples of rejected content include:
+
+- content that is too short;
+- claims that bypass supervisor approval;
+- assignments outside the agent's permitted hierarchy;
+- structurally empty plans.
+
+The UI receives the specific violation list so the author can correct the content.
+
+## Step 5 — Review and approve
+
+Select the supervisor.
+
+Pending submissions appear with a **Diff** action.
+
+The review flow is:
+
+```text
+Child submits
+     ↓
+Supervisor reviews diff
+     ├── Request Revision → child drafts again
+     └── Approve → child section merged into parent
+```
+
+Approval uses a stable section marker for each child. Re-approving a child therefore replaces that child's previous section rather than appending another copy.
+
+If a replacement is materially shorter than the existing section, the merge can still occur but is reported as a conflict.
+
+## Step 6 — Build Plan & Spec
+
+The project-wide **Build Plan & Spec** view provides:
+
+### Build Plan by Team
+
+Shows the current plan for each agent in hierarchy order, including:
+
+- responsibilities;
+- status;
+- principles;
+- current plan.
+
+### Public Domain Spec
+
+Shows the published project specification.
+
+The public specification cannot be published until the project reaches its required final state.
+
+Publishing creates a frozen assembled markdown copy. Publishing again after later changes replaces the previous published copy.
 
 ## Documents
 
-Every agent has exactly two document tabs, both empty at creation:
+Every agent owns exactly two document slots:
 
-- **Principles** — the constraints, inherited context and boundaries this agent
-  must respect. The agent re-reads this every time it drafts or chats, so it is
-  the place to put the rules you want obeyed.
-- **Plan** — the work this agent owns, versioned on every write. It is filled
-  automatically by **Build Architecture** (its own draft), by **Finalize &
-  Delegate** on its supervisor (the slice handed down to it), and by an
-  approval (the merged result on the supervisor). The **Build Plan** view is
-  built from these plan slots, so anything written here shows up in the
-  project-wide plan.
+| Document | Purpose |
+|---|---|
+| `principles` | Constraints, inherited context, and boundaries |
+| `plan` | Current work owned by the agent |
 
-There is no way to add a third; the two slots are created server-side with the
-agent. Populate them two ways:
+Both start empty.
 
-1. **Chat.** Ask the agent for something and its reply is scanned for
-   `[DOC_UPDATE: plan | ...]` (or the block form
-   `[DOC_UPDATE: plan]...[/DOC_UPDATE]`). Tagged content is written into that
-   slot and the version counter bumps.
-2. **Upload.** The **Upload** button next to the tabs puts a `.md` or `.txt`
-   file into the currently selected slot. Other extensions and files over
-   512 KB are rejected.
+### Chat document updates
 
-Each tab shows its version number, and **Preview** / **Raw Editor** switch
-between rendered markdown and editing.
+Agent replies can contain:
 
-## What is not persisted
+```text
+[DOC_UPDATE: plan | one-line content]
+```
 
-The **Sprint Planning** and **Code Repository** workspaces, and the AI coding
-tools modal, are UI-only leftovers from v1. They work in the browser but the
-backend does not store them, so their contents disappear on reload. The agent
-tree, statuses, documents, slices and approvals are all server-side and do
-survive both a reload and a backend restart.
+or:
+
+```text
+[DOC_UPDATE: plan]
+multi-line markdown
+[/DOC_UPDATE]
+```
+
+The backend extracts the tag, writes the content to the requested slot, increments its version, and removes the control tag from the user-visible reply.
+
+### File uploads
+
+The document upload endpoint accepts:
+
+- `.md`
+- `.txt`
+
+The default maximum size is 512 KiB.
+
+Document writes are validated server-side and stored as new versions.
+
+## What is not durable
+
+The frontend still contains some legacy v1 workspaces:
+
+- Sprint Planning
+- Code Repository
+- AI Coding Tools
+
+These are not backed by the v2 backend and should not be treated as persisted application data.

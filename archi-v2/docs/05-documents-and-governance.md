@@ -1,88 +1,140 @@
-# 05 — Documents and governance
+# 05 — Documents and Governance
 
-## Two slots, always
+## Two document slots
 
-Every agent owns exactly two documents, created with the agent in
-`AgentRole.__post_init__` so an agent cannot exist without them:
+Every agent has exactly two server-managed documents:
 
-| `doc_type` | Purpose |
+| Type | Purpose |
 |---|---|
-| `principles` | Non-negotiable constraints, inherited context, boundaries. |
-| `plan` | The agent's current dev plan. |
+| `principles` | Constraints, inherited context, and boundaries |
+| `plan` | Current work owned by the agent |
 
-Both start empty. There is no endpoint that creates a third type, and the UI
-has no affordance for one — v1's role-specific schemas and custom-document
-modal are gone. Whether a slot has content is `is_populated`, not its
-existence.
+Both are created when the agent is created.
 
-Every write appends to `versions[]` and bumps `version`; nothing is
-overwritten in place, so "the current plan" always means the latest version of
-the same document.
+There is no supported third document type.
 
-## Two ways to populate a slot
+## Versioning
 
-**1. Chat.** `DocumentStore` scans each agent reply for either form:
+Every accepted write creates a new document version.
 
+The current document points to the latest version while previous versions remain available in `versions[]`.
+
+This applies to both:
+
+- chat-generated document updates;
+- file uploads.
+
+## Chat updates
+
+The document adapter recognizes:
+
+```text
+[DOC_UPDATE: plan | content]
 ```
-[DOC_UPDATE: plan | one-line content]
 
+and:
+
+```text
 [DOC_UPDATE: plan]
-multi-line markdown
+content
 [/DOC_UPDATE]
 ```
 
-Only `principles` and `plan` match the pattern. The tag is stripped from the
-text shown to the user and the content is written to that slot. A tagged
-document that fails validation is dropped with a logged reason rather than
-failing the whole chat turn — you still get the reply.
+The supported document types are `principles` and `plan`.
 
-**2. Upload.** `POST /api/projects/{id}/agents/{agentId}/documents/{docType}/upload`
-takes a `.md` or `.txt` file up to `ARCHI_MAX_UPLOAD_BYTES` (512 KB default)
-and writes it as a new version of that slot. Other extensions are rejected.
+After extraction:
 
-Both paths go through the same `DocumentPort`, server-side. In v1 these rules
-lived in frontend validation and were bypassable by calling the API directly.
+1. the control tag is removed from the visible reply;
+2. the content is validated;
+3. the document is versioned;
+4. the resulting document version is reported to the caller.
+
+A failed document tag does not have to fail the entire chat response.
+
+## Uploads
+
+The upload endpoint accepts:
+
+- `.md`
+- `.txt`
+
+The default maximum size is 512 KiB and can be changed with `ARCHI_MAX_UPLOAD_BYTES`.
+
+Document rules are enforced server-side, so direct API calls cannot bypass the UI restrictions.
 
 ## Governance
 
-`RuleBasedGovernanceAdapter` implements the port v1 declared but never
-implemented. The checks are mechanical on purpose — reproducible and
-explainable, no model in the loop — and **all** violations are returned, not
-just the first.
+Governance is intentionally rule-based rather than model-based.
 
-On a submission (`validate_boundary`):
+That makes the checks:
 
-- Content shorter than 24 characters, or longer than 200,000.
-- Authority claims: `"bypass review"`, `"skip supervisor approval"`,
-  `"no review required"`, `"i approve my own"`.
-- Foreign scope — *assigning work to* an agent that is not the author, one of
-  its direct reports, or its parent. Assigning sideways across the tree is a
-  boundary violation.
+- deterministic;
+- reproducible;
+- explainable;
+- inexpensive.
 
-Foreign scope looks for assignment phrasing ("delegate X to Linus", "Linus
-will…", "Owner: Linus"), not for the bare name. Blockquoted passages and
-sections headed as context — parent plan, inherited, roster, direct reports,
-background — are skipped entirely, because a handed-down plan quotes the peer
-roster verbatim and those names are context the author did not write.
+The governance adapter returns all detected violations instead of stopping at the first one.
 
-On a document write (`validate_document`), additionally:
+## Submission validation
 
-- A `plan` must contain at least one heading or list item, otherwise it cannot
-  be meaningfully delegated or diffed.
-- `principles` must be at least two lines.
+A submitted plan is checked for:
 
-A failed submission raises `GovernanceRejectedError` and the API returns 400
-with the list of violations, so the UI can show exactly what to fix.
+### Content size
+
+- minimum length: 24 characters;
+- maximum length: 200,000 characters.
+
+### Authority violations
+
+Examples include claims such as:
+
+```text
+bypass review
+skip supervisor approval
+no review required
+I approve my own
+```
+
+### Foreign scope
+
+An agent must not assign work to an unrelated agent outside the permitted hierarchy.
+
+The validator looks for assignment-style language rather than simply rejecting every mention of another agent's name.
+
+Contextual sections such as inherited plans and rosters are treated differently from newly authored assignments.
+
+## Document validation
+
+In addition to submission rules:
+
+### Plans
+
+A plan must contain meaningful structure such as a heading or list item.
+
+### Principles
+
+Principles must contain at least two lines.
+
+## Governance response
+
+A rejected submission is returned as an HTTP 400 with the specific violation list.
+
+This lets the UI show actionable feedback.
 
 ## Degraded output
 
-When the model is unavailable — no `GEMINI_API_KEY`, an API error, or a
-response that skipped some direct reports — the deterministic offline
-templates fill in and the response carries:
+When Gemini is unavailable, the offline adapter can generate deterministic content.
+
+The response carries information similar to:
 
 ```json
-"degradedInfo": { "degraded": true, "reason": "...", "provider": "offline" }
+{
+  "degradedInfo": {
+    "degraded": true,
+    "reason": "...",
+    "provider": "offline"
+  }
+}
 ```
 
-The UI surfaces it. The point is that a template is never silently passed off
-as model output.
+The frontend displays this state so users can distinguish deterministic fallback content from model output.
